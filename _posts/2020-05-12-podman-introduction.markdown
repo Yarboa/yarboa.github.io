@@ -6,13 +6,13 @@ categories: podman update
 ---
 
 
-I would like share my experience with rootless installation of [redhat.blog][4] mariadb. \
-The blog's example is done similar to docker with root permission,  
-In this short blog, i will emphasis the differences for rootless. \
-Rootles is great advantage of over docker from security wise.
+I would like share my experience with mariadb rootless installation based  [redhat.blog][4].
+The blog's example is done similar to docker with root permission,
+In this short blog, i will emphasis the differences for rootless. 
+Rootles is great advantage of over docker security wise.
    
 Benefits and difference of Podman vs Docker described in [opensource.com][2] 
-In addition to security advantages, running podman in rootless user is great.
+In addition to security advantages, running podman in rootless gives the feeling of its maturity.
 
 
 #### _**Installation RHEL/Centos 7.X**_
