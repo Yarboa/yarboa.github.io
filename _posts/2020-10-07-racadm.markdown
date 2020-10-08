@@ -1,0 +1,125 @@
+---
+layout: post
+title:  "Dell racadm experience"
+date:   2020-10-07 17:00:08 +0300
+categories: sys-admin
+---
+
+
+In this post i would like share my experience with Dell racadm.  
+Our team maintains CI env with switches and bios config changes.  
+Switches are managed through jonos, ios ansible modules.  
+
+Most of lab servers are Dell.  
+BIOS automated by redfish, ansible module of (Dell iDRAC)
+Commands are Dell racadm tool underneath the module
+
+#### _**Install racadm rpm**_   
+
+How to install.  
+
+```bash
+# Download the package distribution
+https://www.dell.com/support/home/en-il/product-support/product/poweredge-r730/drivers
+tar tf DellEMC-iDRACTools-Web-LX-9.4.0-3732_A00.tar.gz
+cd iDRACTools/racadm
+# Install
+sudo /bin/bash install_racadm.sh
+# Verify
+rpm -qa | grep racadm
+sudo /opt/dell/srvadmin/sbin/racadm
+===============================================================================
+RACADM version 9.4.0
+Copyright (c) 2003-2019 Dell, Inc.
+All Rights Reserved
+===============================================================================
+```
+
+#### _**Useful racadm commands**_
+
+Racadm enables remote management of iDRAC servers and the servers (IPMI commands), usefull for automation and no lab access.  
+Command explained help command, here are few examples: 
+
+```bash
+racadm help <command>
+```
+##### __Sample commands__
+```bash
+# Assume iDrac web interface is very slow and need to restart
+racadm -r <bmc_ip> -u root -p pass racreset soft
+# Server power up/off
+racadm -r <bmc_ip> -u root -p pass serveraction powerup
+# Bios settings
+racadm -r <bmc_ip> -u root -p pass set BIOS.ProcSettings.LogicalProc Enabled
+```   
+
+Lab automation requires frequent bios changes, such as HyperThreaded Enabled/Disabled option is set.
+manual command should look like this.
+
+```bash
+racadm -r <bmc_ip> -u root -p pass set BIOS.ProcSettings.LogicalProc Enabled
+```
+In case of successful command
+The follwoing returned:
+```bash
+[Key=BIOS.Setup.1-1#ProcSettings]                                            
+RAC1017: Successfully modified the object value and the change is in 
+       pending state.
+       To apply modified value, create a configuration job and reboot 
+       the system. To create the commit and reboot jobs, use "jobqueue" 
+       command. For more information about the "jobqueue" command, see RACADM 
+       help.
+```
+Lets create a job for the next host boot to enter bios and apply changes.
+```bash
+racadm -r <bmc_ip> -u root -p pass jobqueue create BIOS.Setup.1-1
+``` 
+Or boot right now 
+```bash
+racadm -r <bmc_ip> -u root -p pass jobqueue create BIOS.Setup.1-1 -r pwrcycle -s TIME_NOW -e TIME_NA 
+RAC1024: Successfully scheduled a job.                                       
+Verify the job status using "racadm jobqueue view -i JID_xxxxx" command.
+Commit JID = JID_014119549231
+Reboot JID = RID_014119550622
+``` 
+
+##### __Trouble shoot w/racadm__
+In case set BIOS.ProcSettings.LogicalProc Enabled returns Error
+
+```bash
+ERROR: LC068: System has pending or commited configuration. Apply or abort the pending configuration if there is any. Or wait until applying configuration is completed. Then retry the operation.
+```
+
+You should search for failing jobs, or not started jobs of BIOS.
+It could be done through iDrac web interface or throug racadm
+
+```bash
+# View jobqueue
+racadm -r <bmc_ip> -u root -p pass jobqueue view 
+# Delete one or all
+racadm -r <bmc_ip> -u root -p pass  jobqueue delete --all
+# Try again with set or get BIOS params
+racadm -r <bmc_ip> -u root -p pass get BIOS.ProcSettings.LogicalProc
+[Key=BIOS.Setup.1-1#ProcSettings]
+LogicalProc=Disabled (Pending Value=Enabled)
+# In case no messages in queue but error persist on setting command
+racadm -r <bmc_ip> -u root -p pass jobqueue delete -i JID_CLEARALL_FORCE
+
+``` 
+
+Get command will return the following after messages are deleted
+```bash
+racadm -r <bmc_ip> -u root -p pass get BIOS.ProcSettings.LogicalProc
+[Key=BIOS.Setup.1-1#ProcSettings]                                            
+LogicalProc=Enabled
+```
+Now iDRAC recovered and ready to receive new bios operations, with success
+
+#### _**Additional reading**_
+
+[racadm cheat sheet][1]  
+[redfish ansible][2]
+
+[1]: http://dev.gnali.org/?p=435
+[2]: https://docs.ansible.com/ansible/latest/collections/community/general/idrac_redfish_command_module.html
+
