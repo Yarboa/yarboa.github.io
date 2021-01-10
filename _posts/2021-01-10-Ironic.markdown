@@ -1,0 +1,129 @@
+---
+layout: post
+title:  "openstack baremetal - failures"
+date:   2021-10-01 17:00:08 +0300
+categories: SysAdmin
+---
+
+
+### TripleO baremetal tricks while things might go wrong. ###
+
+TripleO is RDO openstack installer, which is maintained by Redhat and other partners/companies  
+Director is RedHat downstream of TripleO RDO project.  
+TripleO is heat and ansible deployer of OpenStack Infrastructure As A Service (IaaS) 
+Please refer this blog for detailed explanation [TripleO Director Blog][1]  
+This short article share information related to baremetal hardware management 
+occurred during CI operations.  
+
+The following workarounds could save some time of redundant redeployment.  
+Undercloud is OpenStack management node, it boostrap OpenStack cloud infrastructure.
+It interacts with baremetal hardware via ironic project, as first step towards deploying
+OpenStack cloud, refer [TripleO Provisioning][2]
+
+#### Changing ironic parameters in overcloud Train and Up ####
+
+If there is a need to change ironic parameters.
+Update undercloud.cong variables and restart ironic containers:
+
+```bash 
+sudo podman ps | awk '/ironic/ {print $NF}' | xargs sudo podman restart
+```
+
+#### TripleO baremetal API. ####
+
+In TripleO docs interaction with hardware done through openstack overcloud API
+later on failures action based on non successful or cloud maintenance 
+openstack baremetal API comes to help.
+
+##### Recovery from, failed cleanup #####
+
+It happens that after deleting overcloud stack remains in clean_wait
+for long time, at the end node member will move to error state
+ 
+```bash 
+openstack stack delete overcloud
+```
+The above could happen after overcloud deletion if the following prameter
+is set in the undercloud, clean_nodes = True
+
+```bash
+openstack baremetal node list
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node list
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+| UUID                                 | Name         | Instance UUID | Power State | Provisioning State | Maintenance |
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+| d4dac8a0-fad4-4861-872e-699699f86047 | compute-0    | None          | power off   | available          | False       |
+| 468dc199-a10a-462b-af3e-ef829c3a861c | compute-1    | None          | power off   | available          | False       |
+| c0ca6ea3-bef9-470f-857d-ec36f41c99ec | controller-0 | None          | power on    | clean wait         | False       |
+| eabac801-1a02-447c-a256-228b84cf6622 | controller-1 | None          | power off   | available          | False       |
+| 581d03c5-141d-40a1-b9ab-aca725f1117d | controller-2 | None          | power off   | available          | False       |
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+
+```
+
+In case it is in wait_clean forever, move node to clean_failed status
+```bash
+openstack baremetal node abort <node_id>
+```
+
+How to recover from the state, introspect node and moe to available state:
+
+```bash 
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node manage <node_id>
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node maintenance unset <node_id>
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection start  <node_id>
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection status  <node_id>
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node provide <node_id>
+
+```
+
+### TripleO virtual introspection vbmc while things might go wrong. ###
+
+Although it is not recommended undercloud and controllers could be deployed as virtual machines.
+In that case vbmc is used to control nodes through ipmi protocols.
+Some time we can not introspect virtual controllers, although we already did in the past
+here python virtualbmc python client could assist.  
+
+Please refer this [Virtual bmc][3]
+
+Consider using pip to in virtualenv
+
+```bash 
+sudo python -m pip install virtualenv
+python -m virtualenv --python python3.6 /tmp/.vbmc
+source /tmp/.vbmc/bin/activate
+pip install virtualbmc
+
+```
+
+Once it is installed, you could try checking the status of vbmc service in controllers
+
+```bash 
+source /tmp/.vbmc/bin/activate
+
+(.vbmc) [stack@undercloud-0 ~]$ vbmc start controller-0
+
+(.vbmc) [stack@undercloud-0 ~]$ vbmc list
++--------------+---------+--------------------+------+
+| Domain name  | Status  | Address            | Port |
++--------------+---------+--------------------+------+
+| controller-0 | down    | ::ffff:172.16.0.67 | 6230 |
+| controller-1 | running | ::ffff:172.16.0.67 | 6231 |
+| controller-2 | running | ::ffff:172.16.0.67 | 6232 |
++--------------+---------+--------------------+------+
+
+
+```
+
+
+
+#### _**Additional reading**_
+
+[TripleO Director][1]  
+[TripleO Provisioning][2]  
+[Virtual bmc][3]
+
+[1]: https://www.redhat.com/en/blog/introduction-red-hat-openstack-platform-director
+[2]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/provisioning/index.html
+[3]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/environments/virtualbmc.html
+
