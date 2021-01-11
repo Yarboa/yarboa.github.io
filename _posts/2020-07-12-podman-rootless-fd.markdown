@@ -121,3 +121,6 @@ We are set and secure to create our docker/buildah file [future articles]
 [1]: https://github.com/redhat-openstack/nfv-tempest-plugin
 [2]: https://github.com/containers/podman/issues/5526
 [3]: https://www.unixarena.com/2013/12/how-to-increase-ulimit-values-in-redhat.html
+
+
+[![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)

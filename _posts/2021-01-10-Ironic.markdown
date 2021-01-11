@@ -128,3 +128,4 @@ source /tmp/.vbmc/bin/activate
 [2]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/provisioning/index.html
 [3]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/environments/virtualbmc.html
 
+[![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)
