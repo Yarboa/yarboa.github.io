@@ -89,6 +89,7 @@ Please refer this [Virtual bmc][3]
 Consider using pip to in virtualenv
 
 ```bash 
+sudo yum -y install libvirt libvirt-devel gcc
 sudo python -m pip install virtualenv
 python -m virtualenv --python python3.6 /tmp/.vbmc
 source /tmp/.vbmc/bin/activate
