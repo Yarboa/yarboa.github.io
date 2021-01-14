@@ -98,6 +98,6 @@ pip install mysql # in your python virtualene
 [rh.dev.blog][1], [opensource.com][2], [redhat.blog][3], [redhat.blog][4] 
 
 
-![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)
+[![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)
 
 -------
