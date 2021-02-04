@@ -124,4 +124,4 @@ Now iDRAC recovered and ready to receive new bios operations, with success
 [2]: https://docs.ansible.com/ansible/latest/collections/community/general/idrac_redfish_command_module.html
 
 
-[![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)
+![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fyarboa.github.io%2Fsys-admin%2F2020%2F10%2F07%2Fracadm.html)

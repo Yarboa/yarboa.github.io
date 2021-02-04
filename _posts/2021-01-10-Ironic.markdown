@@ -71,10 +71,10 @@ How to recover from the state, introspect node and moe to available state:
 ```bash 
 (undercloud) [stack@undercloud-0 ~]$ openstack baremetal node manage <node_id>
 (undercloud) [stack@undercloud-0 ~]$ openstack baremetal node maintenance unset <node_id>
+# Needed only if there were hw changes before cleanup
 (undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection start  <node_id>
 (undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection status  <node_id>
 (undercloud) [stack@undercloud-0 ~]$ openstack baremetal node provide <node_id>
-
 ```
 
 ### virtual introspection vbmc while things might go wrong. ###
@@ -128,4 +128,4 @@ source /tmp/.vbmc/bin/activate
 [2]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/provisioning/index.html
 [3]: https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/environments/virtualbmc.html
 
-[![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg)](https://hitcounter.pythonanywhere.com/count/tag.svg)
+![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fyarboa.github.io%2Fsysadmin%2F2021%2F01%2F10%2FIronic.html)
