@@ -1,4 +1,5 @@
 ---
+
 layout: post
 title:  "Run-podman-on-windows"
 date:   2022-10-11 12:11:08 +0300
@@ -106,7 +107,27 @@ dnf install podman -y
 podman run ubi9-micro date
 ```
 
-image is downloaded and print the date
+Image is downloaded and print the date
+
+Environment is ready, it is time to run a container and check it
+from the virtualmachine
+
+``` PowerShell
+podman run --rm -d -p 8080:80 --name httpd docker.io/library/httpd
+curl http://localhost:8080/ -UseBasicParsing
+```
+
+Exit virtualmachine fedora
+Try curl from windows command line,
+From PowerShell/command.
+
+``` PowerShell
+exit
+(curl http://localhost:8080/ -UseBasicParsing).Content
+```
+
+The following output should be expected.
+\<html\>\<body\>\<h1\>It works!\</h1\>\</body\>\</html\>
 
 [1]: https://www.redhat.com/sysadmin/run-podman-windows
 [2]: https://learn.microsoft.com/en-us/windows/wsl/install
