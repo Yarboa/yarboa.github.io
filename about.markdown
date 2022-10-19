@@ -1,9 +1,9 @@
-------
+---
 
 layout: page
 title: About
 permalink: /about/
-------
+---
 
 This is my personal blog
 I will try to share opensource interesting snippets in this blog.
