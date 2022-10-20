@@ -108,4 +108,4 @@ We are set and secure to unlock Admin password
 [2]: https://8gwifi.org/docs/podman-jenkins.jsp
 [3]: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/finding_running_and_building_containers_with_podman_skopeo_and_buildah#running_containers_as_root_or_rootless
 
-![Hits](https://hitcounter.pythonanywhere.com/count/tag.svg?url=https%3A%2F%2Fyarboa.github.io%2Fpodman%2Fupdate%2F2020%2F05%2F31%2Fpodman-introduction.html)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fyarboa.github.io%2Fpodman%2Fupdate%2F2020%2F05%2F31%2Fpodman-introduction.html&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
