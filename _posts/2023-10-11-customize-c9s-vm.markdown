@@ -20,7 +20,7 @@ That post uses few commands that could be automated inside bash scripts or ansib
 later on.
 
 
-_**Prepare cloud centos-stream-9 image for your work**_
+### Prepare cloud centos-stream-9 image for your work
 
 - Download CentOSStream9 cloud image for [CentOSStream9](https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2)
 
@@ -49,6 +49,8 @@ s/#PermitRootLogin.*/PermitRootLogin yes/' -a /tmp/CentOS-Stream-GenericCloud-9-
 /usr/bin/qemu-system-x86_64 -smp 12 -enable-kvm -m 2G -machine q35 -cpu host -vnc 0.0.0.0:1 -k en-us -device virtio-net-pci,netdev=n0,mac=FE:30:26:a6:91:2d -netdev user,id=n0,net=10.0.2.0/24,hostfwd=tcp::2222-:22 -drive file=CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2,index=0,media=disk,format=qcow2,if=virtio,snapshot=off&
 
 ```
+
+### Verify vm is set
 
 - Ssh to running machine with new ${PASSWORD}:
 
