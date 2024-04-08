@@ -123,3 +123,5 @@ You will see the login page.
 [6]: https://opensource.com/article/18/10/podman-more-secure-way-run-containers
 [7]: https://www.redhat.com/sysadmin/podman-rest-api
 [8]: https://docs.podman.io/en/latest/markdown/podman-system-service.1.html#examples
+
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fyarboa.github.io%2Fcontainers%2F2024%2F03%2F25%2Fs2i-localhost.html&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
