@@ -122,4 +122,4 @@ We are set and secure to create our docker/buildah file [future articles]
 [2]: https://github.com/containers/podman/issues/5526
 [3]: https://www.unixarena.com/2013/12/how-to-increase-ulimit-values-in-redhat.html
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fyarboa.github.io%2Fpodman%2Fupdate%2F2020%2F07%2F12%2Fpodman-rootless-fd.html&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+[![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/podman-rootless-fd.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/podman-rootless-fd)
