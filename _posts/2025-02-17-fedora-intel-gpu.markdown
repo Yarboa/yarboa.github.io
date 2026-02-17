@@ -29,27 +29,41 @@ I started a chat with Google Gemini and found that Intel released the xe driver.
 
 ## Comparison of the i915 and xe Drivers
 
-<!-- markdownlint-disable MD013 MD060 -->
-| Feature               | i915 Driver       | xe Driver                     |
-|-----------------------|-------------------|-------------------------------|
-| **Hardware Support**  |                   |                               |
-| Meteor Lake Support   | Legacy/Limited    | Native/Full                   |
-| Arc GPU Support       | Not Supported     | Full Support                  |
-| Integrated GPUs       | Up to 12th Gen    | 12th Gen+                     |
-| **Performance & Efficiency** |            |                               |
-| Graphics Performance  | Good              | Better                        |
-| Compute Performance   | Good              | Optimized for AI/ML           |
-| Power Efficiency      | Good              | Improved                      |
-| **Compute & AI**      |                   |                               |
-| Level Zero Support    | Yes               | Optimized                     |
-| OpenCL Support        | Yes               | Yes                           |
-| AI/ML Workloads       | Good              | Better (LLMs, AI inferencing) |
-| oneAPI Integration    | Supported         | Enhanced                      |
-| **Development Status** |                  |                               |
-| Active Development    | Maintenance mode  | Active development            |
-| Kernel Status         | Stable (upstream) | Mainline since 6.8            |
-| Feature Updates       | Bug fixes only    | Regular feature additions     |
-<!-- markdownlint-enable MD013 MD060 -->
+<!-- markdownlint-disable MD036 -->
+**Hardware Support**
+
+| Feature             | i915 Driver    | xe Driver   |
+|---------------------|----------------|-------------|
+| Meteor Lake Support | Legacy/Limited | Native/Full |
+| Arc GPU Support     | Not Supported  | Full Support|
+| Integrated GPUs     | Up to 12th Gen | 12th Gen+   |
+
+**Performance & Efficiency**
+
+| Feature              | i915 Driver | xe Driver           |
+|----------------------|-------------|---------------------|
+| Graphics Performance | Good        | Better              |
+| Compute Performance  | Good        | Optimized for AI/ML |
+| Power Efficiency     | Good        | Improved            |
+
+**Compute & AI**
+
+| Feature            | i915 Driver | xe Driver                     |
+|--------------------|-------------|-------------------------------|
+| Level Zero Support | Yes         | Optimized                     |
+| OpenCL Support     | Yes         | Yes                           |
+| AI/ML Workloads    | Good        | Better (LLMs, AI inferencing) |
+| oneAPI Integration | Supported   | Enhanced                      |
+
+**Development Status**
+
+| Feature            | i915 Driver      | xe Driver                 |
+|--------------------|------------------|---------------------------|
+| Active Development | Maintenance mode | Active development        |
+| Kernel Status      | Stable (upstream)| Mainline since 6.8        |
+| Feature Updates    | Bug fixes only   | Regular feature additions |
+
+<!-- markdownlint-enable MD036 -->
 
 **For LLM workloads with Podman:** xe driver provides better compute
 performance and power management.
@@ -60,35 +74,35 @@ performance and power management.
 
 1. Check Your Kernel Version
 
-```bash
-uname -r
-```
+   ```bash
+   uname -r
+   ```
 
-**Required:** Kernel 6.8+ (you have 6.18.8 ✅)
+   **Required:** Kernel 6.8+ (you have 6.18.8 ✅)
 
-1. Verify xe Driver Availability
+2. Verify xe Driver Availability
 
-```bash
-modinfo xe
-```
+   ```bash
+   modinfo xe
+   ```
 
-Should show: `description: Intel Xe2 Graphics` ✅
+   Should show: `description: Intel Xe2 Graphics` ✅
 
-1. Check Current Driver
+3. Check Current Driver
 
-```bash
-readlink /sys/class/drm/card*/device/driver
-```
+   ```bash
+   readlink /sys/class/drm/card*/device/driver
+   ```
 
-Should show: `i915` (current state)
+   Should show: `i915` (current state)
 
-1. Backup Current Configuration (GRUB will be modified)
+4. Backup Current Configuration (GRUB will be modified)
 
    ```bash
    sudo cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d)
    ```
 
-1. Install Intel oneAPI (Optional but recommended for GPU compute workloads)
+5. Install Intel oneAPI (Optional but recommended for GPU compute workloads)
 
    Add Intel's oneAPI repository:
 
@@ -145,7 +159,7 @@ Should show: `i915` (current state)
    - `i915.force_probe=!*` - Tells i915 to skip all devices
    - `xe.force_probe=7d55` - Tells xe to claim device 7d55 (your GPU)
 
-1. Create Module Blacklist (Alternative Method)
+2. Create Module Blacklist (Alternative Method)
 
    Create a blacklist file to ensure i915 doesn't load:
 
@@ -156,7 +170,7 @@ Should show: `i915` (current state)
    EOF
    ```
 
-1. Ensure xe Module Loads
+3. Ensure xe Module Loads
 
    ```bash
    sudo tee /etc/modules-load.d/xe.conf <<EOF
@@ -165,7 +179,7 @@ Should show: `i915` (current state)
    EOF
    ```
 
-1. Update GRUB Configuration
+4. Update GRUB Configuration
 
    ```bash
    # For UEFI systems (most modern systems)
@@ -175,7 +189,7 @@ Should show: `i915` (current state)
    # sudo grub2-mkconfig -o /boot/grub2/grub.cfg
    ```
 
-1. Rebuild initramfs
+5. Rebuild initramfs
 
    ```bash
    sudo dracut --force
@@ -183,7 +197,7 @@ Should show: `i915` (current state)
 
    This ensures the correct driver is loaded during early boot.
 
-1. Reboot
+6. Reboot
 
    ```bash
    sudo reboot
@@ -203,7 +217,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** `../../../bus/pci/drivers/xe`
 
-1. Verify xe Module is Loaded
+2. Verify xe Module is Loaded
 
    ```bash
    lsmod | grep -E "^xe"
@@ -211,7 +225,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** Shows xe module with usage count > 0
 
-1. Verify i915 is NOT Loaded
+3. Verify i915 is NOT Loaded
 
    ```bash
    lsmod | grep -E "^i915"
@@ -219,7 +233,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** No output
 
-1. Check dmesg for xe Driver
+4. Check dmesg for xe Driver
 
    ```bash
    dmesg | grep -i "xe.*7d55"
@@ -227,7 +241,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** Should show xe claiming your GPU
 
-1. Check OpenCL/Level Zero Detection
+5. Check OpenCL/Level Zero Detection
 
    ```bash
    source /opt/intel/oneapi/setvars.sh --force
@@ -236,7 +250,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** Shows Intel Arc Graphics via Level Zero
 
-1. Verify DRI Devices
+6. Verify DRI Devices
 
    ```bash
    ls -la /dev/dri/
@@ -244,7 +258,7 @@ After reboot, verify the xe driver is active:
 
    **Expected:** `renderD128` and `card*` devices present
 
-1. Verify Wayland Compatibility (Optional)
+7. Verify Wayland Compatibility (Optional)
 
    ```bash
    # Check display server
@@ -258,4 +272,4 @@ After reboot, verify the xe driver is active:
 
 ---
 
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fyarboa.github.io%2Ffedora%2F2025%2F02%2F17%2Ffedora-intel-gpu.html&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+[![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/fedora-intel-gpu.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/fedora-intel-gpu)
