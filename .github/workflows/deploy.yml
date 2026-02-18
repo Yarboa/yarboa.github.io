@@ -1,21 +1,18 @@
-name: Build and Deploy Eleventy
+name: Build and Deploy to GitHub Pages
 
 on:
   push:
     branches:
       - main
       - 11ty
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -23,23 +20,45 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build Eleventy
+      - name: Build Eleventy site
         run: npx @11ty/eleventy
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
+      - name: Deploy to gh-pages
+        run: |
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          # Fetch gh-pages or create orphan
+          git fetch origin gh-pages || true
+
+          # Save the built site
+          cp -r _site /tmp/site-build
+
+          # Switch to gh-pages branch
+          if git show-ref --quiet refs/remotes/origin/gh-pages; then
+            git checkout gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf .
+          fi
+
+          # Remove everything except .git
+          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} + || true
+
+          # Copy built site
+          cp -r /tmp/site-build/* .
+
+          # Add .nojekyll to prevent GitHub from running Jekyll
+          touch .nojekyll
+
+          # Commit and push if there are changes
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "docs: deployed to gh-pages from ${{ github.ref_name }} @ ${{ github.sha }}"
+            git push origin gh-pages
+          fi
