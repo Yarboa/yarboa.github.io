@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dell racadm experience - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Dell racadm experience</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-10-07" itemprop="datePublished">
+        October 7, 2020
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>In this post i would like share my experience with Dell racadm.<br>
+Our team maintains CI env with switches and bios config changes.<br>
+Switches are managed through jonos, ios ansible modules.</p>
+<p>Most of lab servers are Dell.<br>
+BIOS automated by redfish, ansible module of (Dell iDRAC)
+Commands are Dell racadm tool underneath the module</p>
+<h4><em><strong>Install racadm rpm</strong></em></h4>
+<p>How to install.</p>
+<pre><code class="language-bash"># Download the package distribution
+https://www.dell.com/support/home/en-il/product-support/product/poweredge-r730/drivers
+tar tf DellEMC-iDRACTools-Web-LX-9.4.0-3732_A00.tar.gz
+cd iDRACTools/racadm
+# Install
+sudo /bin/bash install_racadm.sh
+# Verify
+rpm -qa | grep racadm
+sudo /opt/dell/srvadmin/sbin/racadm
+===============================================================================
+RACADM version 9.4.0
+Copyright (c) 2003-2019 Dell, Inc.
+All Rights Reserved
+===============================================================================
+</code></pre>
+<h4><em><strong>Useful racadm commands</strong></em></h4>
+<p>Racadm enables remote management of iDRAC servers and the servers (IPMI commands), usefull for automation and no lab access.<br>
+Command explained help command, here are few examples:</p>
+<pre><code class="language-bash">racadm help &lt;command&gt;
+</code></pre>
+<h5><strong>Sample commands</strong></h5>
+<pre><code class="language-bash"># Assume iDrac web interface is very slow and need to restart
+racadm -r &lt;bmc_ip&gt; -u root -p pass racreset soft
+# Server power up/off
+racadm -r &lt;bmc_ip&gt; -u root -p pass serveraction powerup
+# Bios settings
+racadm -r &lt;bmc_ip&gt; -u root -p pass set BIOS.ProcSettings.LogicalProc Enabled
+</code></pre>
+<p>Lab automation requires frequent bios changes, such as HyperThreaded Enabled/Disabled option is set.
+manual command should look like this.</p>
+<pre><code class="language-bash">racadm -r &lt;bmc_ip&gt; -u root -p pass set BIOS.ProcSettings.LogicalProc Enabled
+</code></pre>
+<p>In case of successful command
+The follwoing returned:</p>
+<pre><code class="language-bash">[Key=BIOS.Setup.1-1#ProcSettings]                                            
+RAC1017: Successfully modified the object value and the change is in 
+       pending state.
+       To apply modified value, create a configuration job and reboot 
+       the system. To create the commit and reboot jobs, use &quot;jobqueue&quot; 
+       command. For more information about the &quot;jobqueue&quot; command, see RACADM 
+       help.
+</code></pre>
+<p>Lets create a job for the next host boot to enter bios and apply changes.</p>
+<pre><code class="language-bash">racadm -r &lt;bmc_ip&gt; -u root -p pass jobqueue create BIOS.Setup.1-1
+</code></pre>
+<p>Or boot right now</p>
+<pre><code class="language-bash">racadm -r &lt;bmc_ip&gt; -u root -p pass jobqueue create BIOS.Setup.1-1 -r pwrcycle -s TIME_NOW -e TIME_NA 
+RAC1024: Successfully scheduled a job.                                       
+Verify the job status using &quot;racadm jobqueue view -i JID_xxxxx&quot; command.
+Commit JID = JID_014119549231
+Reboot JID = RID_014119550622
+</code></pre>
+<h5><strong>Trouble shoot w/racadm</strong></h5>
+<p>In case set BIOS.ProcSettings.LogicalProc Enabled returns Error</p>
+<pre><code class="language-bash">ERROR: LC068: System has pending or commited configuration. Apply or abort the pending configuration if there is any. Or wait until applying configuration is completed. Then retry the operation.
+</code></pre>
+<p>You should search for failing jobs, or not started jobs of BIOS.
+It could be done through iDrac web interface or throug racadm</p>
+<pre><code class="language-bash"># View jobqueue
+racadm -r &lt;bmc_ip&gt; -u root -p pass jobqueue view 
+# Delete one or all
+racadm -r &lt;bmc_ip&gt; -u root -p pass  jobqueue delete --all
+# Try again with set or get BIOS params
+racadm -r &lt;bmc_ip&gt; -u root -p pass get BIOS.ProcSettings.LogicalProc
+[Key=BIOS.Setup.1-1#ProcSettings]
+LogicalProc=Disabled (Pending Value=Enabled)
+# In case no messages in queue but error persist on setting command
+racadm -r &lt;bmc_ip&gt; -u root -p pass jobqueue delete -i JID_CLEARALL_FORCE
+
+</code></pre>
+<p>Get command will return the following after messages are deleted</p>
+<pre><code class="language-bash">racadm -r &lt;bmc_ip&gt; -u root -p pass get BIOS.ProcSettings.LogicalProc
+[Key=BIOS.Setup.1-1#ProcSettings]                                            
+LogicalProc=Enabled
+</code></pre>
+<p>Now iDRAC recovered and ready to receive new bios operations, with success</p>
+<h4><em><strong>Additional reading</strong></em></h4>
+<p><a href="http://dev.gnali.org/?p=435">racadm cheat sheet</a><br>
+<a href="https://docs.ansible.com/ansible/latest/collections/community/general/idrac_redfish_command_module.html">redfish ansible</a></p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/racadm"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/racadm.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

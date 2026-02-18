@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Podman-introduction! - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Podman-introduction!</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-05-12" itemprop="datePublished">
+        May 12, 2020
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>I would like share my experience with mariadb rootless podman installation based on <a href="https://www.redhat.com/sysadmin/rootless-podman-makes-sense">redhat.blog</a>.<br>
+The blog's explains how to podman with rootless permission.<br>
+In this short blog, i will emphasis the differences for rootless.</p>
+<p>Benefits and difference of Podman vs Docker described in <a href="https://opensource.com/article/19/2/how-does-rootless-podman-work?extIdCarryOver=true&amp;sc_cid=7013a000002Dg5TAAS">opensource.com</a>
+In addition to security advantages, running podman in rootless show its maturity and reliability.</p>
+<h4><em><strong>Installation RHEL/Centos 7.X</strong></em></h4>
+<p>Refer the following <a href="https://www.redhat.com/sysadmin/rootless-podman-makes-sense">centos/podman</a> guide</p>
+<h4><em><strong>Set and check host config</strong></em></h4>
+<pre><code class="language-bash">sudo -i
+echo &quot;user.max_user_namespaces=28633&quot; &gt; /etc/sysctl.d/userns.conf
+sysctl -p /etc/sysctl.d/userns.conf
+
+</code></pre>
+<h4><em><strong>Set and check rootless user</strong></em></h4>
+<pre><code class="language-bash">
+podman unshare cat /proc/self/uid_map
+podman unshare cat /proc/self/gid_map
+
+output:
+         0     1001          1
+         1     165536      65536
+
+#### Verify the following:
+(undercloud) [stack@undercloud-0 ~]$ cat .config/containers/storage.conf 
+[storage]
+  driver = &quot;overlay&quot;
+  runroot = &quot;/run/user/1001&quot;
+</code></pre>
+<p>Use mysql-data as local directory for data persistency.
+Add mysql permision mysql to access the directory</p>
+<pre><code class="language-bash">
+mkdir mysql-data
+podman unshare chown 27:27 $(pwd)/mysql-data
+ls -ltr of mysql-data
+165562 165562 ... mysql-data
+</code></pre>
+<p>Run container</p>
+<pre><code class="language-bash">
+podman run -i -v $(pwd)/mysql-data:/var/lib/mysql/data:Z -e MYSQL_USER=user -e MYSQL_PASSWORD=pass -e MYSQL_DATABASE=db -p 3306:3306 -P registry.access.redhat.com/rhscl/mariadb-102-rhel7
+</code></pre>
+<p>container will run till stopped</p>
+<h4><em><strong>Test it with python connection</strong></em></h4>
+<pre><code class="language-bash">netstat -nap | grep 3306
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+tcp        0      0 0.0.0.0:3306            0.0.0.0:*               LISTEN      17783/slirp4netns   
+</code></pre>
+<p>connect
+pip install mysql # in your python virtualene</p>
+<pre><code class="language-bash">&gt;&gt;&gt; import mysql \
+&gt;&gt;&gt; db = MySQLdb.connect(host=&quot;127.0.0.1&quot;, \
+... user=&quot;user&quot;, \
+... password=&quot;pass&quot;, \
+... db=&quot;db&quot;) \
+&gt;&gt;&gt; cur = db.cursor() \
+&gt;&gt;&gt; cur.execute(&quot;CREATE TABLE users( \
+... id INT NOT NULL, name VARCHAR(20) \
+... NOT NULL, PRIMARY KEY (id) )&quot;)
+
+</code></pre>
+<h4><em><strong>Further reading</strong></em></h4>
+<p><a href="https://developers.redhat.com/blog/2019/02/21/podman-and-buildah-for-docker-users/">rh.dev.blog</a>, <a href="https://opensource.com/article/19/2/how-does-rootless-podman-work?extIdCarryOver=true&amp;sc_cid=7013a000002Dg5TAAS">opensource.com</a>, <a href="https://www.redhat.com/sysadmin/behind-scenes-podman">redhat.blog</a>, <a href="https://www.redhat.com/sysadmin/rootless-podman-makes-sense">redhat.blog</a></p>
+<h2><a href="http://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-12"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-12.svg?style=flat&amp;show=unique" alt="HitCount"></a></h2>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

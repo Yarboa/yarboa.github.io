@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s2i with podman - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">s2i with podman</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2024-03-25" itemprop="datePublished">
+        March 25, 2024
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h1>s2i as standalone from github repo and branch</h1>
+<p>This post shares some simple commands for using openshift s2i with podman
+as a standalone django-app builder from github.
+I was searching for some blogs, but did not find the accurate and updated
+answer for that.</p>
+<p>While I took this course
+<a href="https://www.credly.com/badges/121cd37b-40a5-4bcd-8a19-b841cb055b21">Introduction to Red Hat OpenShift Applications (DO101)</a>,
+I realized how to make it work with additional <a href="https://github.com/openshift/source-to-image/tree/master">podman</a> knowledge,
+and finally managed to make it work.
+I will describe here the &quot;what do to&quot; inorder to get it work in a desktop
+machine with django s2i example.</p>
+<p>I will let <a href="https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/builds_and_image_streams.html#source-build">openshift s2i doc</a> and <a href="https://github.com/openshift/source-to-image/tree/master">s2i doc</a>, to explain s2i builder.</p>
+<h2>Links, helped getting started</h2>
+<p>That link give an idea of how it should work, <a href="https://github.com/sclorg/django-ex/tree/master">django-ex sample project</a>
+running with python 3.5 and openshift quickstart.
+I would like to run django-app with python 3.10,
+podman search command called to help for finding python image answering
+this requirement.
+Below command searches for 3 images in quay.io repository.</p>
+<pre><code class="language-bash">podman search  --limit 3 quay.io/python-3
+
+NAME                                                                                    DESCRIPTION
+quay.io/fedora/python-311
+quay.io/fedora/python-310
+quay.io/redhat-user-workloads/open-data-hub-tenant/opendatahub/nb-base-ubi9-python-3-9  AppStudio repository for the use
+</code></pre>
+<h2>Run your prepared django project</h2>
+<p>From s2i and other documents this s2i command has failed.</p>
+<pre><code class="language-bash">s2i build https://github.com/Yarboa/beyond-tutorial quay.io/fedora/python-310 django-tutorial
+FATAL: permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get &quot;http://%2Fvar%2Frun%2Fdocker.sock/v1.43/version&quot;: dial unix /var/run/docker.sock: connect: permission denied
+</code></pre>
+<p>It seems that s2i which written in go, is using Docker API, but I have podman, instead.
+As you may know or may not know podman is a wrapper of runc to fork and exec containers.
+Docker has a client server model, it needs docker daemon.
+I will let this old <a href="https://opensource.com/article/18/10/podman-more-secure-way-run-containers">more secure way for containers</a> to explain the difference.
+The following question appears,
+&quot;Is a way to run/immitate docker daemon with podman on desktop host?</p>
+<p>A bit more google searches brought this article <a href="https://www.redhat.com/sysadmin/podman-rest-api">podman rest api</a>
+and podman man to help.</p>
+<pre><code class="language-bash">man podman-system-service
+</code></pre>
+<h2>Prepare podman socket to work</h2>
+<p>Based on the previous section podman rest API could help here, lets try it.
+There is a need for socket activation to interact with podman libpod,
+it can also run as rootless daemon which is also cool and maybe replace docker.</p>
+<pre><code class="language-bash">systemctl enable --user podman.socket
+systemctl start --user podman.socket
+systemctl status --user podman.socket
+● podman.socket - Podman API Socket
+     Loaded: loaded (/usr/lib/systemd/user/podman.socket; enabled; preset: disabled)
+     Active: active (listening) since Sun 2024-04-07 20:29:05 IDT; 1s ago
+   Triggers: ● podman.service
+       Docs: man:podman-system-service(1)
+     Listen: /run/user/1000/podman/podman.sock (Stream)
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/podman.socket
+
+Apr 07 20:29:05 my-fedora systemd[2368]: Listening on podman.socket - Podman API Socket.
+</code></pre>
+<p>We could see that socket is active
+Listen: /run/user/1000/podman/podman.sock</p>
+<h2>Building an image with s2i again</h2>
+<p>Base on podman <a href="https://docs.podman.io/en/latest/markdown/podman-system-service.1.html#examples">man podman-system-service</a> It seems that
+DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock, lets try to use it.</p>
+<p>Now time to check it is up and running</p>
+<pre><code class="language-bash">s2i build --ref=main --loglevel=5 -U unix://${XDG_RUNTIME_DIR}/podman/podman.sock https://github.com/Yarboa/beyond-tutorial quay.io/fedora/python-310 django-tutorial
+I0407 19:23:36.270826   42805 build.go:52] Running S2I version &quot;v1.3.8&quot;
+...
+I0408 11:13:49.289318   96717 build.go:182] Build completed successfully
+</code></pre>
+<h2>Running image</h2>
+<pre><code class="language-bash">podman images --format &quot;&quot; | grep django-tutorial
+[docker.io/library/django-tutorial:latest]
+
+podman run --replace --name django-app -d -p 9090:9090 -it docker.io/library/django-tutorial bash -c &quot;pip install django; python manage.py migrate; setsid python manage.py runserver 0.0.0.0:9090 &gt; runserver.log&quot;
+46310345352dbc905b1d1fa658317809f24aa5c3b031668bc1638ab089556001
+
+</code></pre>
+<p>Verify by opening web browser <a href="http://localhost:9090/">http://localhost:9090/</a>
+You will see the login page.</p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/s2i-localhost"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/s2i-localhost.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

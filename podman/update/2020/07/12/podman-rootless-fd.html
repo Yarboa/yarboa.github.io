@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run-rootless-podman-filedescriptors! - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Run-rootless-podman-filedescriptors!</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-07-12" itemprop="datePublished">
+        July 12, 2020
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>In this post i would like to discuss my experience with file descriptors
+issues in rootless podman.<br>
+Tried to build from scratch openstack <a href="https://github.com/redhat-openstack/nfv-tempest-plugin">nfv-tempest-plugin</a><br>
+This openstack nfv-tempest plugin requires:</p>
+<ul>
+<li>python3.6 and up.</li>
+<li>pip tempest</li>
+<li>pip  python-tempestconf</li>
+<li>pip  neutron-tempest-plugin</li>
+</ul>
+<p>once the above installed we are ready to install nfv-tempest-plugin
+through git or pip.</p>
+<p>I will review in the following article the operation and checks for podman.
+and how to work around file descriptors errors while building the image.</p>
+<h4><em><strong>install Centos/Rhel 7.X packages</strong></em></h4>
+<pre><code class="language-bash">sudo -i
+yum install podman -y
+echo &quot;user.max_user_namespaces=28633&quot; &gt; /etc/sysctl.d/userns.conf
+sysctl -p /etc/sysctl.d/userns.conf
+</code></pre>
+<h4><em><strong>Run command  in user namespace</strong></em></h4>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman unshare cat /proc/self/uid_map
+         0       1001          1
+         1     165536      65536
+
+[stack@RHEL7 ~]$ podman unshare cat /proc/self/gid_map
+         0       1001          1
+         1     165536      65536
+</code></pre>
+<h4><em><strong>Consume dockerhub images</strong></em></h4>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman login -u yarboa docker.io
+Password: 
+Login Succeeded!
+skopeo inspect docker://rackspacedot/python37
+podman pull rackspacedot/python37
+</code></pre>
+<p>Verify glibc is packed in the container</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman inspect docker.io/rackspacedot/python37
+</code></pre>
+<h4><em><strong>Run and verify container is ready for running tempest</strong></em></h4>
+<p>Run container</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman run -it docker.io/rackspacedot/python37 /bin/bash
+root@e9762ca9a49c:/# 
+root@e9762ca9a49c:/# ulimit -Hn
+1024
+root@e9762ca9a49c:/# ulimit -Sn
+1024
+</code></pre>
+<p>Install required packages:</p>
+<pre><code class="language-bash">root@e9762ca9a49c:/# python -m pip install -U pip
+root@e9762ca9a49c:/# python -m pip install -U tempest
+OSError: [Errno 24] Too many open files: '/tmp/pip-ephem-wheel-cache-_8l0t8s7'
+</code></pre>
+<h4><em><strong>Increase user files descriptor</strong></em></h4>
+<p>Googling a bit brings you to the follwoing <a href="https://github.com/containers/podman/issues/5526">podman-ticket</a>
+Searching a bit more brings you to the follwoing <a href="https://www.unixarena.com/2013/12/how-to-increase-ulimit-values-in-redhat.html">article</a></p>
+<p>Add rootless podman user number of files</p>
+<pre><code class="language-bash">sudo -i
+vi /etc/security/limits.conf
+# End of file
+stack   soft   nofile    1048576
+stack   hard   nofile    1048576
+:wq
+
+sysctl -p
+</code></pre>
+<p>Logout as rootles user and login</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ ulimit -n
+1048576
+</code></pre>
+<p>We are ready to run podman image with new ulimits</p>
+<pre><code class="language-bash">podman run --ulimit nofile=1048576:1048576 -it docker.io/rackspacedot/python37 /bin/bash
+
+root@e9762ca9a419:/# ulimit -Hn
+1048576
+</code></pre>
+<p>Try to install tempest</p>
+<pre><code class="language-bash">root@e9762ca9a419:/# python -m pip install -U tempest
+root@e9762ca9a419:/# python -m pip install -U python-tempestconf
+root@e9762ca9a419:/# python -m pip install -U neutron-tempest-plugin
+root@e9762ca9a419:/# cd /root
+root@e9762ca9a419:/# python -m pip install -U git client
+root@e9762ca9a419:/# git clone https://github.com/openstack/neutron-tempest-plugin.git
+</code></pre>
+<p>We are set and secure to create our docker/buildah file [future articles]</p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/podman-rootless-fd"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/podman-rootless-fd.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

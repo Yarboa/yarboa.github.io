@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run-rootless-jenkins-podman! - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Run-rootless-jenkins-podman!</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-05-31" itemprop="datePublished">
+        May 31, 2020
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>As previous post <a href="https://yarboa.github.io/podman/update/2020/05/12/podman-introduction.html">Podman.introduction</a>, i realized the security benefits of running container
+in rootless user environment.</p>
+<p>While jenkins is common tool for automating and scheduling repeated tasks, even for sw developer.<br>
+I found this nice link <a href="https://8gwifi.org/docs/podman-jenkins.jsp">podman.jenkins</a>, but i did not understand whether it is rootless
+or rooted container, based on the sample and tried to run it rootles.</p>
+<h4><em><strong>Verify cgroups of rootles user are ok</strong></em></h4>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman unshare cat /proc/self/uid_map
+      0      27912          1
+      1     200000      65536
+</code></pre>
+<p>In case there is only one line in the out put, please look here <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/finding_running_and_building_containers_with_podman_skopeo_and_buildah#running_containers_as_root_or_rootless">redhat</a>,
+Try to verify and download an image</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman pull ubi7/ubi
+Trying to pull registry.access.redhat.com/ubi7/ubi...
+Getting image source signatures
+Copying blob 82a8f4ea76cb [--------------------------------------] 0.0b / 0.0b
+Copying blob a3ac36470b00 [--------------------------------------] 0.0b / 72.7MiB
+Copying config d36cb7ab60 done  
+Writing manifest to image destination
+Storing signatures
+d36cb7ab60042e6687e221c9bfdc4b0c674e7753cff56f71bc3bd66e957598cc
+</code></pre>
+<p>If no error occured we can continue with jenkins.</p>
+<h4><em><strong>Follow jenkins simple steps</strong></em></h4>
+<p>Track the following <a href="https://8gwifi.org/docs/podman-jenkins.jsp">podman.jenkins</a></p>
+<p>Either use podman volume create for data persistence, refere previous blog related to directory
+ownership, or use local directory, similar to the blog</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman volume create jenkins-data
+jenkins-data
+[stack@RHEL7 ~]$ podman volume create jenkins-docker-certs
+jenkins-docker-certs 
+
+podman container run  --name jenkins-blueocean   --rm   --detach   --privileged   -p 8080:8080  -p 50000:50000 -v jenkins-data:/var/jenkins_home  -v jenkins-docker-certs:/certs/client:ro jenkinsci/blueocean
+</code></pre>
+<p>Connect into the container through:</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman ps
+CONTAINER ID  IMAGE                                 COMMAND  CREATED             STATUS                 PORTS                   NAMES
+763cc5ae7547  docker.io/jenkinsci/blueocean:latest           About a minute ago  Up About a minute ago  0.0.0.0:8080-&gt;8080/tcp  jenkins-blueocean
+
+[stack@RHEL7 ~]$ podman exec -ti 763cc5ae7547 /bin/bash
+bash-4.4$ 
+
+cat /var/jenkins_home/secrets/initialAdminPassword
+8ef0941e670f4971bf1c34ff3fa0e6c1
+</code></pre>
+<h4><em><strong>Test permissions</strong></em></h4>
+<p>Default user is jenkins, and perissions were set accordingly.</p>
+<pre><code class="language-bash">[stack@RHEL7 ~]$ podman exec -ti 763cc5ae7547 /bin/bash
+bash-4.4$ 
+bash-4.4$ id
+uid=1000(jenkins) gid=1000(jenkins) groups=1000(jenkins)
+bash-4.4$ echo &quot;&quot; &gt; /var/jenkins_home/Hello.txt
+bash-4.4$ ls -ltr /var/jenkins_home/Hello.txt
+-rw-r--r-- 1 jenkins jenkins 1 Jun  1 15:37 /var/jenkins_home/Hello.txt
+
+bash-4.4$ echo &quot;&quot; &gt; /certs/client/Hello.txt
+bash: /certs/client/Hello.txt: Read-only file system
+
+</code></pre>
+<h4><em><strong>Test remote connections</strong></em></h4>
+<p>Now lets find jenkins IP ADDRESS and set firewall rules, rootles container, the use must set firwall rules</p>
+<pre><code class="language-bash">JENKINS=hostname -I | awk '{print $1}'
+firewall-cmd --add-port=8080/tcp
+firewall-cmd --permanent --add-port=8080/tcp
+
+</code></pre>
+<pre><code class="language-bash">
+curl $JENKINS:8080
+</code></pre>
+<p>We are set and secure to unlock Admin password</p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-31"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-31.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

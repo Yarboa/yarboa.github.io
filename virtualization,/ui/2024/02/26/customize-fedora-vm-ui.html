@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>customize-fedora-vm - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">customize-fedora-vm</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2024-02-26" itemprop="datePublished">
+        February 26, 2024
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>This post share some simple commands for converting cloud fedora image to graphical.target.</p>
+<p>During day to day work there is a need to reproduce test scenarios/ bugs inside
+different environments at your dev working station or test labs, this blog deals more with graphical test environments..</p>
+<h3>Prepare cloud Fedora-39 image for the work</h3>
+<ul>
+<li>Download Fedora39 cloud image for <a href="https://dl.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/x86_64/images/Fedora-Cloud-Base-39-1.5.x86_64.qcow2">Fedora39</a></li>
+</ul>
+<pre><code class="language-bash">curl -C - --output-dir &quot;/tmp&quot;  -O https://dl.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/x86_64/images/Fedora-Cloud-Base-39-1.5.x86_64.qcow2```
+</code></pre>
+<p><em>Note:</em> Please refer the previous blog related to <a href="https://yarboa.github.io/virtualization/2023/10/29/customize-c9s-vm.html">previos_post</a> for customizing vms</p>
+<p>To avoid full disk space error while customizing vm, please use qemu-img resize from previos post, lets check our target once sshd to vm</p>
+<pre><code class="language-bash">systemctl get-default
+multi-user.target
+</code></pre>
+<h3>Running Fedora machine</h3>
+<pre><code class="language-bash">/usr/bin/qemu-system-x86_64 -smp 12 -enable-kvm -m 2G -machine q35 -cpu host -vnc 0.0.0.0:3 -k en-us -device virtio-net-pci,netdev=n0,mac=FE:30:26:a6:91:2d -netdev user,id=n0,net=10.0.2.0/24,hostfwd=tcp::2224-:22 -drive file=./Fedora-Cloud-Base-39-orig-1.5.x86_64.qcow2,index=0,media=disk,format=qcow2,if=virtio,snapshot=off&amp;
+</code></pre>
+<p>Ssh into running vm,</p>
+<pre><code class="language-bash">
+ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null  root@localhost -p 2224
+
+</code></pre>
+<p>Complere block configuration for larger disk size</p>
+<pre><code class="language-bash">
+[root@localhost ~]# lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sr0     11:0    1 1024M  0 rom  
+zram0  251:0    0  1.9G  0 disk [SWAP]
+vda    252:0    0   20G  0 disk 
+├─vda1 252:1    0    1M  0 part 
+├─vda2 252:2    0 1000M  0 part /boot
+├─vda3 252:3    0  100M  0 part /boot/efi
+├─vda4 252:4    0    4M  0 part 
+└─vda5 252:5    0  3.9G  0 part /home
+                                /
+
+[root@localhost ~]# growpart /dev/vda 5
+[root@localhost ~]# btrfs filesystem resize +10g /
+
+[root@localhost ~]# lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sr0     11:0    1 1024M  0 rom  
+zram0  251:0    0  1.9G  0 disk [SWAP]
+vda    252:0    0   20G  0 disk 
+├─vda1 252:1    0    1M  0 part 
+├─vda2 252:2    0 1000M  0 part /boot
+├─vda3 252:3    0  100M  0 part /boot/efi
+├─vda4 252:4    0    4M  0 part 
+└─vda5 252:5    0 18.9G  0 part /home
+                                /
+</code></pre>
+<h3>Convert cloud Fedora-39 image to graphical.target with Wayland compositor</h3>
+<p>My goal is to run Wayland compositor instead of X11 server, we also need to install Windows Manager that use this compositor, i found this article very usefull <a href="https://www.if-not-true-then-false.com/2018/fedora-switch-display-manager/">Switch display managers with Fedora</a> and <a href="https://docs.fedoraproject.org/en-US/fedora-server/usecase-gui-addon/">Adding GUI to fedora</a></p>
+<pre><code class="language-bash">
+[root@localhost ~]#  dnf group list --installed
+Last metadata expiration check: 0:03:30 ago on Wed 28 Feb 2024 11:40:16 AM UTC.
+Installed Environment Groups:
+   Fedora Cloud Server
+</code></pre>
+<p>Choose GUI to install, pretty hevay more then 1.3G and 1400 rpms to install</p>
+<pre><code class="language-bash">
+[root@localhost ~]# dnf group list
+[root@localhost ~]# dnf group install &quot;KDE Plasma Workspaces&quot;
+[root@localhost ~]# systemctl set-default graphical.target
+[root@localhost ~]# dnf install gdm
+[root@localhost ~]# systemctl enable gdm.service
+[root@localhost ~]# systemctl reboot
+
+</code></pre>
+<p>Ssh into running vm,</p>
+<pre><code class="language-bash">
+ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null  root@localhost -p 2224
+
+</code></pre>
+<p>Connect with vnc-client to 0.0.0.0:3 server
+Use the GUI login console for root</p>
+<p>Now lets check what type of window server we have Wayland or X11</p>
+<pre><code class="language-bash">[root@localhost ~]# systemctl get-default
+graphical.target  
+[root@localhost ~]# echo $XDG_SESSION_TYPE
+tty
+
+</code></pre>
+<p>Lets open Terminal from graphical console</p>
+<pre><code class="language-bash">[root@localhost ~]# echo $XDG_SESSION_TYPE
+wayland
+</code></pre>
+<p>In case you choose different Desktop to install and the following is set</p>
+<pre><code class="language-bash">[root@localhost ~]# echo $XDG_SESSION_TYPE
+x11
+</code></pre>
+<p>Need to update the xserver to be replaces with wayland</p>
+<pre><code class="language-bash">
+sed 's/#WaylandEnable=false/WaylandEnable=true/' /etc/gdm/custom.conf
+
+</code></pre>
+<p>Reboot and check</p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Intel Arc GPU with Fedora - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Intel Arc GPU with Fedora</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2025-02-17" itemprop="datePublished">
+        February 17, 2025
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2>Why This Matters</h2>
+<p>As an enthusiast of the ramalama project, I needed to use a GPU to run models
+locally. Ramalama leverages GPU acceleration for better response times while
+processing answers.</p>
+<p>Most of my teammates are using Apple MacBooks or Mac mini systems with M2 or
+newer chips. However, macOS is not Linux.</p>
+<p>Recently I refreshed my Lenovo laptop, which contains a Meteor Lake (14th Gen)
+GPU. My Fedora system uses the Wayland protocol; I am not using X11 anymore.</p>
+<p>However, my GNOME graphical sessions started to freeze, and the only way to
+recover was by rebooting.</p>
+<p>This blog post explains how to fix screen freezes on Fedora systems running
+the Wayland graphical compositor.</p>
+<h2>Intel Arc GPU: Migrating from i915 to xe Driver with Fedora</h2>
+<p>I started a chat with Google Gemini and found that Intel released the xe driver.</p>
+<h2>Comparison of the i915 and xe Drivers</h2>
+<!-- markdownlint-disable MD036 -->
+<p><strong>Hardware Support</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>i915 Driver</th>
+<th>xe Driver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Meteor Lake Support</td>
+<td>Legacy/Limited</td>
+<td>Native/Full</td>
+</tr>
+<tr>
+<td>Arc GPU Support</td>
+<td>Not Supported</td>
+<td>Full Support</td>
+</tr>
+<tr>
+<td>Integrated GPUs</td>
+<td>Up to 12th Gen</td>
+<td>12th Gen+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Performance &amp; Efficiency</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>i915 Driver</th>
+<th>xe Driver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Graphics Performance</td>
+<td>Good</td>
+<td>Better</td>
+</tr>
+<tr>
+<td>Compute Performance</td>
+<td>Good</td>
+<td>Optimized for AI/ML</td>
+</tr>
+<tr>
+<td>Power Efficiency</td>
+<td>Good</td>
+<td>Improved</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Compute &amp; AI</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>i915 Driver</th>
+<th>xe Driver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Level Zero Support</td>
+<td>Yes</td>
+<td>Optimized</td>
+</tr>
+<tr>
+<td>OpenCL Support</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>AI/ML Workloads</td>
+<td>Good</td>
+<td>Better (LLMs, AI inferencing)</td>
+</tr>
+<tr>
+<td>oneAPI Integration</td>
+<td>Supported</td>
+<td>Enhanced</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Development Status</strong></p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>i915 Driver</th>
+<th>xe Driver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active Development</td>
+<td>Maintenance mode</td>
+<td>Active development</td>
+</tr>
+<tr>
+<td>Kernel Status</td>
+<td>Stable (upstream)</td>
+<td>Mainline since 6.8</td>
+</tr>
+<tr>
+<td>Feature Updates</td>
+<td>Bug fixes only</td>
+<td>Regular feature additions</td>
+</tr>
+</tbody>
+</table>
+<!-- markdownlint-enable MD036 -->
+<p><strong>For LLM workloads with Podman:</strong> xe driver provides better compute
+performance and power management.</p>
+<hr>
+<h2>Prerequisites</h2>
+<ol>
+<li>
+<p>Check Your Kernel Version</p>
+<pre><code class="language-bash">uname -r
+</code></pre>
+<p><strong>Required:</strong> Kernel 6.8+ (you have 6.18.8 ✅)</p>
+</li>
+<li>
+<p>Verify xe Driver Availability</p>
+<pre><code class="language-bash">modinfo xe
+</code></pre>
+<p>Should show: <code>description: Intel Xe2 Graphics</code> ✅</p>
+</li>
+<li>
+<p>Check Current Driver</p>
+<pre><code class="language-bash">readlink /sys/class/drm/card*/device/driver
+</code></pre>
+<p>Should show: <code>i915</code> (current state)</p>
+</li>
+<li>
+<p>Backup Current Configuration (GRUB will be modified)</p>
+<pre><code class="language-bash">sudo cp /etc/default/grub /etc/default/grub.backup.$(date +%Y%m%d)
+</code></pre>
+</li>
+<li>
+<p>Install Intel oneAPI (Optional but recommended for GPU compute workloads)</p>
+<p>Add Intel's oneAPI repository:</p>
+<!-- markdownlint-disable MD013 -->
+<pre><code class="language-bash">sudo tee /etc/yum.repos.d/oneAPI.repo &lt;&lt; EOF
+[oneAPI]
+name=Intel® oneAPI repository
+baseurl=https://yum.repos.intel.com/oneapi
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+EOF
+</code></pre>
+<!-- markdownlint-enable MD013 -->
+<p>Update and install the base kit:</p>
+<pre><code class="language-bash">sudo dnf install intel-basekit
+</code></pre>
+<p><strong>Warning:</strong> This is several GBs in size.</p>
+</li>
+</ol>
+<hr>
+<h2>Migration Steps</h2>
+<ol>
+<li>
+<p>Remove Conflicting i915 Configuration</p>
+<p>Your current GRUB configuration has an incorrect blacklist. Edit GRUB:</p>
+<pre><code class="language-bash">sudo nano /etc/default/grub
+</code></pre>
+<p>Find this line:</p>
+<!-- markdownlint-disable MD013 -->
+<pre><code class="language-text">GRUB_CMDLINE_LINUX=&quot;rd.luks.uuid=luks-0bcd3d51-a5eb-4770-b826-5d4db4d8823d rhgb quiet intel_idle.max_cstate=4 module_blacklist=i915 i915.force_probe=!7d55 i915.enable_psr=0 i915.enable_fbc=0&quot;
+</code></pre>
+<p>Replace with:</p>
+<pre><code class="language-text">GRUB_CMDLINE_LINUX=&quot;rd.luks.uuid=luks-0bcd3d51-a5eb-4770-b826-5d4db4d8823d rhgb quiet intel_idle.max_cstate=4 i915.force_probe=!* xe.force_probe=7d55&quot;
+</code></pre>
+<!-- markdownlint-enable MD013 -->
+<p><strong>Explanation:</strong></p>
+<ul>
+<li><code>i915.force_probe=!*</code> - Tells i915 to skip all devices</li>
+<li><code>xe.force_probe=7d55</code> - Tells xe to claim device 7d55 (your GPU)</li>
+</ul>
+</li>
+<li>
+<p>Create Module Blacklist (Alternative Method)</p>
+<p>Create a blacklist file to ensure i915 doesn't load:</p>
+<pre><code class="language-bash">sudo tee /etc/modprobe.d/blacklist-i915.conf &lt;&lt;EOF
+# Blacklist i915 in favor of xe driver
+blacklist i915
+EOF
+</code></pre>
+</li>
+<li>
+<p>Ensure xe Module Loads</p>
+<pre><code class="language-bash">sudo tee /etc/modules-load.d/xe.conf &lt;&lt;EOF
+# Load xe driver at boot
+xe
+EOF
+</code></pre>
+</li>
+<li>
+<p>Update GRUB Configuration</p>
+<pre><code class="language-bash"># For UEFI systems (most modern systems)
+sudo grub2-mkconfig -o /boot/efi/EFI/fedora/grub.cfg
+
+# If that fails, try BIOS method:
+# sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+</code></pre>
+</li>
+<li>
+<p>Rebuild initramfs</p>
+<pre><code class="language-bash">sudo dracut --force
+</code></pre>
+<p>This ensures the correct driver is loaded during early boot.</p>
+</li>
+<li>
+<p>Reboot</p>
+<pre><code class="language-bash">sudo reboot
+</code></pre>
+</li>
+</ol>
+<hr>
+<h2>Verification</h2>
+<p>After reboot, verify the xe driver is active:</p>
+<ol>
+<li>
+<p>Check Active Driver</p>
+<pre><code class="language-bash">readlink /sys/class/drm/card*/device/driver
+</code></pre>
+<p><strong>Expected:</strong> <code>../../../bus/pci/drivers/xe</code></p>
+</li>
+<li>
+<p>Verify xe Module is Loaded</p>
+<pre><code class="language-bash">lsmod | grep -E &quot;^xe&quot;
+</code></pre>
+<p><strong>Expected:</strong> Shows xe module with usage count &gt; 0</p>
+</li>
+<li>
+<p>Verify i915 is NOT Loaded</p>
+<pre><code class="language-bash">lsmod | grep -E &quot;^i915&quot;
+</code></pre>
+<p><strong>Expected:</strong> No output</p>
+</li>
+<li>
+<p>Check dmesg for xe Driver</p>
+<pre><code class="language-bash">dmesg | grep -i &quot;xe.*7d55&quot;
+</code></pre>
+<p><strong>Expected:</strong> Should show xe claiming your GPU</p>
+</li>
+<li>
+<p>Check OpenCL/Level Zero Detection</p>
+<pre><code class="language-bash">source /opt/intel/oneapi/setvars.sh --force
+sycl-ls
+</code></pre>
+<p><strong>Expected:</strong> Shows Intel Arc Graphics via Level Zero</p>
+</li>
+<li>
+<p>Verify DRI Devices</p>
+<pre><code class="language-bash">ls -la /dev/dri/
+</code></pre>
+<p><strong>Expected:</strong> <code>renderD128</code> and <code>card*</code> devices present</p>
+</li>
+<li>
+<p>Verify Wayland Compatibility (Optional)</p>
+<pre><code class="language-bash"># Check display server
+echo $XDG_SESSION_TYPE
+
+# Verify DRM/KMS is working
+cat /sys/class/drm/card*/status
+</code></pre>
+<p><strong>Expected:</strong> Wayland session with connected displays showing &quot;connected&quot;</p>
+</li>
+</ol>
+<hr>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/fedora-intel-gpu"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/fedora-intel-gpu.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

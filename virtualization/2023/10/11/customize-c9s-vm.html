@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>customize-c9s-vm - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">customize-c9s-vm</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2023-10-11" itemprop="datePublished">
+        October 11, 2023
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>This post share some simple commands for virtualmachines.<br>
+During day to day work there is a need to reproduce test scenarios/ bugs inside
+different environments at your dev working station or test labs.</p>
+<p>With many cases, containers could be sufficient, but for other use cases interacts with containers as pods or docker compose, is not enough,</p>
+<p>Automated tests with specific Operating Systems  can be run locally or against  AWS image or any other testing framwerk.</p>
+<p>That post uses few commands that could be automated inside bash scripts or ansible playbooks
+later on.</p>
+<h3>Prepare cloud centos-stream-9 image for your work</h3>
+<ul>
+<li>Download CentOSStream9 cloud image for <a href="https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2">CentOSStream9</a></li>
+</ul>
+<pre><code class="language-bash">curl --output-dir &quot;/tmp&quot; -O https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2
+</code></pre>
+<ul>
+<li>Increase disk size in +10G</li>
+</ul>
+<pre><code class="language-bash">qemu-img resize /tmp/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2 +20G
+</code></pre>
+<ul>
+<li>Set root password, remove cloud-init option and enable root login</li>
+</ul>
+<pre><code class="language-bash">virt-customize --uninstall cloud-init --root-password password:${PASSWORD} \
+--edit '/etc/ssh/sshd_config: \
+s/#PermitRootLogin.*/PermitRootLogin yes/' -a /tmp/CentOS-Stream-GenericCloud-9-latest.aarch64.qcow2  
+</code></pre>
+<ul>
+<li>Run virtual machine with port forwarding:</li>
+</ul>
+<pre><code class="language-bash">/usr/bin/qemu-system-x86_64 -smp 12 -enable-kvm -m 2G -machine q35 -cpu host -vnc 0.0.0.0:1 -k en-us -device virtio-net-pci,netdev=n0,mac=FE:30:26:a6:91:2d -netdev user,id=n0,net=10.0.2.0/24,hostfwd=tcp::2222-:22 -drive file=CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2,index=0,media=disk,format=qcow2,if=virtio,snapshot=off&amp;
+
+</code></pre>
+<h3>Verify vm is set</h3>
+<ul>
+<li>Ssh to running machine with new ${PASSWORD}:</li>
+</ul>
+<pre><code class="language-bash">ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null  root@localhost -p 2222
+</code></pre>
+<ul>
+<li>Check your blockdevices:</li>
+</ul>
+<pre><code class="language-bash">lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+sr0     11:0    1 1024M  0 rom  
+vda    252:0    0   25G  0 disk 
+└─vda1 252:1    0  7.8G  0 part /
+</code></pre>
+<p>Incase of xfs file type, use command blkid, use grows command</p>
+<pre><code class="language-bash"># Grow / to use the whole partition 
+xfs_growfs /  
+# Grow / to use the 50% partition 
+growpart --free-percent=50 /dev/vda 1
+
+</code></pre>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/customize-c9s-vm"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/customize-c9s-vm.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

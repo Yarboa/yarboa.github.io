@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>openstack baremetal - failures - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">openstack baremetal - failures</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2021-01-10" itemprop="datePublished">
+        January 10, 2021
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h3>TripleO baremetal tricks while things might go wrong.</h3>
+<p>TripleO is RDO openstack installer, which is maintained by Redhat and other partners/companies<br>
+Director is RedHat downstream of TripleO RDO project.<br>
+TripleO is heat and ansible deployer of OpenStack Infrastructure As A Service (IaaS)
+Please refer this blog for detailed explanation <a href="https://www.redhat.com/en/blog/introduction-red-hat-openstack-platform-director">TripleO Director Blog</a><br>
+This short article share information related to baremetal hardware management
+occurred during CI operations.</p>
+<p>The following workarounds could save some time of redundant redeployment.<br>
+Undercloud is OpenStack management node, it boostrap OpenStack cloud infrastructure.
+It interacts with baremetal hardware via ironic project, as first step towards deploying
+OpenStack cloud, refer <a href="https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/provisioning/index.html">TripleO Provisioning</a></p>
+<h4>Changing ironic parameters in overcloud Train and Up</h4>
+<p>If there is a need to change ironic parameters.
+Update undercloud.cong variables and restart ironic containers:</p>
+<pre><code class="language-bash">sudo podman ps | awk '/ironic/ {print $NF}' | xargs sudo podman restart
+</code></pre>
+<h4>TripleO baremetal API.</h4>
+<p>In TripleO docs interaction with hardware done through openstack overcloud API
+later on failures action based on non successful or cloud maintenance
+openstack baremetal API comes to help.</p>
+<h5>Recovery from, failed cleanup</h5>
+<p>It happens that after deleting overcloud stack remains in clean_wait
+for long time, at the end node member will move to error state</p>
+<pre><code class="language-bash">openstack stack delete overcloud
+</code></pre>
+<p>The above could happen after overcloud deletion if the following prameter
+is set in the undercloud, clean_nodes = True</p>
+<pre><code class="language-bash">openstack baremetal node list
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node list
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+| UUID                                 | Name         | Instance UUID | Power State | Provisioning State | Maintenance |
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+| d4dac8a0-fad4-4861-872e-699699f86047 | compute-0    | None          | power off   | available          | False       |
+| 468dc199-a10a-462b-af3e-ef829c3a861c | compute-1    | None          | power off   | available          | False       |
+| c0ca6ea3-bef9-470f-857d-ec36f41c99ec | controller-0 | None          | power on    | clean wait         | False       |
+| eabac801-1a02-447c-a256-228b84cf6622 | controller-1 | None          | power off   | available          | False       |
+| 581d03c5-141d-40a1-b9ab-aca725f1117d | controller-2 | None          | power off   | available          | False       |
++--------------------------------------+--------------+---------------+-------------+--------------------+-------------+
+
+</code></pre>
+<p>In case it is in wait_clean forever, move node to clean_failed status</p>
+<pre><code class="language-bash">openstack baremetal node abort &lt;node_id&gt;
+</code></pre>
+<p>How to recover from the state, introspect node and moe to available state:</p>
+<pre><code class="language-bash">(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node manage &lt;node_id&gt;
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node maintenance unset &lt;node_id&gt;
+# Needed only if there were hw changes before cleanup
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection start  &lt;node_id&gt;
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal introspection status  &lt;node_id&gt;
+(undercloud) [stack@undercloud-0 ~]$ openstack baremetal node provide &lt;node_id&gt;
+</code></pre>
+<h3>virtual introspection vbmc while things might go wrong.</h3>
+<p>Although it is not recommended undercloud and controllers could be deployed as virtual machines.
+In that case vbmc is used to control nodes through ipmi protocols.
+Some time we can not introspect virtual controllers, although we already did in the past
+here python virtualbmc python client could assist.</p>
+<p>Please refer this <a href="https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/environments/virtualbmc.html">Virtual bmc</a></p>
+<p>Consider using pip to in virtualenv</p>
+<pre><code class="language-bash">sudo yum -y install libvirt libvirt-devel gcc
+sudo python -m pip install virtualenv
+python -m virtualenv --python python3.6 /tmp/.vbmc
+source /tmp/.vbmc/bin/activate
+pip install virtualbmc
+
+</code></pre>
+<p>Once it is installed, you could try checking the status of vbmc service in controllers</p>
+<pre><code class="language-bash">source /tmp/.vbmc/bin/activate
+
+(.vbmc) [stack@undercloud-0 ~]$ vbmc start controller-0
+
+(.vbmc) [stack@undercloud-0 ~]$ vbmc list
++--------------+---------+--------------------+------+
+| Domain name  | Status  | Address            | Port |
++--------------+---------+--------------------+------+
+| controller-0 | down    | ::ffff:172.16.0.67 | 6230 |
+| controller-1 | running | ::ffff:172.16.0.67 | 6231 |
+| controller-2 | running | ::ffff:172.16.0.67 | 6232 |
++--------------+---------+--------------------+------+
+
+
+</code></pre>
+<h4><em><strong>Additional reading</strong></em></h4>
+<p><a href="https://www.redhat.com/en/blog/introduction-red-hat-openstack-platform-director">TripleO Director</a><br>
+<a href="https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/provisioning/index.html">TripleO Provisioning</a><br>
+<a href="https://docs.openstack.org/project-deploy-guide/tripleo-docs/latest/environments/virtualbmc.html">Virtual bmc</a></p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/ironic"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/ironic.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
