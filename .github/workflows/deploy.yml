@@ -28,48 +28,9 @@ jobs:
           grep -A5 "post-list" _site/index.html || echo "WARNING: No posts found in build!"
           ls -la _site/ | head -20
 
-      - name: Deploy to gh-pages
-        run: |
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Fetch gh-pages or create orphan
-          git fetch origin gh-pages || true
-
-          # Save the built site
-          cp -r _site /tmp/site-build
-
-          # Switch to gh-pages branch
-          if git show-ref --quiet refs/remotes/origin/gh-pages; then
-            git checkout gh-pages
-          else
-            git checkout --orphan gh-pages
-            git rm -rf .
-          fi
-
-          # Remove everything except .git
-          find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} + || true
-
-          # Copy built site
-          cp -r /tmp/site-build/* .
-
-          # Add .nojekyll to prevent GitHub from running Jekyll
-          touch .nojekyll
-
-          # Add timestamp file to force cache invalidation
-          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" > .last-updated
-
-          # Verify deployment
-          echo "=== Verifying gh-pages content ==="
-          grep -A5 "post-list" index.html || echo "WARNING: No posts in index.html!"
-          ls -la | head -20
-
-          # Commit and push if there are changes
-          git add .
-          if git diff --staged --quiet; then
-            echo "No changes to deploy"
-          else
-            git commit -m "docs: deployed to gh-pages from ${{ github.ref_name }} @ ${{ github.sha }}"
-            git push origin gh-pages
-          fi
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./_site
+          force_orphan: true
