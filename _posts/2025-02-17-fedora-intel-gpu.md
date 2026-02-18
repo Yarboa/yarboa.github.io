@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Intel Arc GPU with Fedora"
-date:   2025-02-17 12:11:08 +0200
 categories: fedora
 ---
 

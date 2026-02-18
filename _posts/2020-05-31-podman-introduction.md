@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Run-rootless-jenkins-podman!"
-date:   2020-05-31 19:11:08 +0300
 categories: podman update
 ---
 

@@ -1,0 +1,11 @@
+# Option 1: Red Hat UBI 9 with Node.js 20 (recommended)
+FROM registry.access.redhat.com/ubi9/nodejs-20:latest
+
+# Set working directory
+WORKDIR /app
+
+# The actual code will be mounted at runtime
+EXPOSE 8080
+
+# Install dependencies at startup (after volume is mounted) and then run serve
+CMD npm install && npm audit fix --force && npm run serve

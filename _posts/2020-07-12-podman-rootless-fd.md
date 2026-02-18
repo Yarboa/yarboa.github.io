@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Run-rootless-podman-filedescriptors!"
-date:   2020-07-12 15:11:08 +0300
 categories: podman update
 ---
 

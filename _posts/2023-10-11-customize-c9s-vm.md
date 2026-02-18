@@ -2,7 +2,6 @@
 
 layout: post
 title:  "customize-c9s-vm"
-date:   2023-10-29 12:11:08 +0300
 categories: virtualization
 ---
 

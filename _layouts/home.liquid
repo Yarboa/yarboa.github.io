@@ -1,0 +1,18 @@
+---
+layout: default
+---
+<div class="home">
+  <h2 class="post-list-heading">Posts</h2>
+  <ul class="post-list">
+    {%- for post in collections.posts reversed -%}
+    <li>
+      <span class="post-meta">{{ post.date | dateDisplay }}</span>
+      <h3>
+        <a class="post-link" href="{{ post.url }}">
+          {{ post.data.title }}
+        </a>
+      </h3>
+    </li>
+    {%- endfor -%}
+  </ul>
+</div>

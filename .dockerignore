@@ -1,0 +1,7 @@
+node_modules
+_site
+.git
+.jekyll-cache
+Gemfile
+Gemfile.lock
+vendor
