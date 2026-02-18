@@ -19,7 +19,7 @@ podman build -f $CONTAINERFILE -t $IMAGE_TAG .
 
 # Run the container with volume mounted
 echo "Starting Eleventy development server..."
-podman run -it --rm \
+podman run --replace -it \
   --name eleventy-dev \
   -v $(pwd):/app:Z \
   -p 8080:8080 \
