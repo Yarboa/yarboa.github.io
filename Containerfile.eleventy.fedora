@@ -1,0 +1,14 @@
+# Fedora base image with Node.js
+FROM registry.fedoraproject.org/fedora:40
+
+# Install Node.js and npm
+RUN dnf install -y nodejs npm && dnf clean all
+
+# Set working directory
+WORKDIR /app
+
+# The actual code will be mounted at runtime
+EXPOSE 8080
+
+# Install dependencies at startup (after volume is mounted) and then run serve
+CMD npm install && npm audit fix --force && npm run serve

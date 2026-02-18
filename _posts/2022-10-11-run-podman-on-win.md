@@ -2,7 +2,6 @@
 
 layout: post
 title:  "Run-podman-on-windows"
-date:   2022-10-11 12:11:08 +0300
 categories: podman update
 ---
 

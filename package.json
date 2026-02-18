@@ -1,0 +1,19 @@
+{
+  "name": "yarboa-blog",
+  "version": "1.0.0",
+  "description": "Yarboa's blog - migrated to Eleventy",
+  "scripts": {
+    "serve": "eleventy --serve --port=8080",
+    "build": "eleventy",
+    "debug": "DEBUG=Eleventy* eleventy"
+  },
+  "keywords": [
+    "blog",
+    "eleventy"
+  ],
+  "author": "Yarboa",
+  "license": "MIT",
+  "devDependencies": {
+    "@11ty/eleventy": "^3.1.2"
+  }
+}

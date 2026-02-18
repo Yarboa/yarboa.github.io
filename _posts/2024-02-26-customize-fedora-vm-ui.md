@@ -2,7 +2,6 @@
 
 layout: post
 title:  "customize-fedora-vm"
-date:   2024-02-26 12:11:08 +0300
 categories: virtualization, ui
 ---
 

@@ -1,7 +1,6 @@
 ---
 layout: post
 title:  "Podman-introduction!"
-date:   2020-05-12 11:51:08 +0200
 categories: podman update
 ---
 
