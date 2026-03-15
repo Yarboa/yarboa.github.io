@@ -1,0 +1,26 @@
+#!/bin/bash
+# Pre-commit hook to lint markdown files
+
+echo "Running markdown linter..."
+
+# Get list of staged markdown files in _posts/
+STAGED_MD_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '^_posts/.*\.md$')
+
+if [ -z "$STAGED_MD_FILES" ]; then
+  echo "No markdown files in _posts/ to lint"
+  exit 0
+fi
+
+# Run markdownlint on staged files
+npx markdownlint-cli $STAGED_MD_FILES
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Markdown linting failed!"
+  echo "Fix the errors above or run: npx markdownlint-cli --fix _posts/*.md"
+  echo ""
+  exit 1
+fi
+
+echo "✅ Markdown linting passed!"
+exit 0
