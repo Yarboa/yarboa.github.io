@@ -17,7 +17,7 @@ Automated tests with specific Operating Systems  can be run locally or against  
 That post uses few commands that could be automated inside bash scripts or ansible playbooks
 later on.
 
-### Prepare cloud centos-stream-9 image for your work
+## Prepare cloud centos-stream-9 image for your work
 
 - Download CentOSStream9 cloud image for [CentOSStream9](https://cloud.centos.org/centos/9-stream/x86_64/images/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2)
 
@@ -46,7 +46,7 @@ s/#PermitRootLogin.*/PermitRootLogin yes/' -a /tmp/CentOS-Stream-GenericCloud-9-
 
 ```
 
-### Verify vm is set
+## Verify vm is set
 
 - Ssh to running machine with new ${PASSWORD}:
 

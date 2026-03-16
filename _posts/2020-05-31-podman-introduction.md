@@ -11,7 +11,7 @@ While jenkins is common tool for automating and scheduling repeated tasks, even 
 I found this nice link [podman.jenkins][2], but i did not understand whether it is rootless
 or rooted container, based on the sample and tried to run it rootles.
 
-#### _**Verify cgroups of rootles user are ok**_
+## _**Verify cgroups of rootles user are ok**_
 
 ```bash
 [stack@RHEL7 ~]$ podman unshare cat /proc/self/uid_map
@@ -36,7 +36,7 @@ d36cb7ab60042e6687e221c9bfdc4b0c674e7753cff56f71bc3bd66e957598cc
 
 If no error occured we can continue with jenkins.
 
-#### _**Follow jenkins simple steps**_
+## _**Follow jenkins simple steps**_
 
 Track the following [podman.jenkins][2]
 
@@ -66,7 +66,7 @@ cat /var/jenkins_home/secrets/initialAdminPassword
 8ef0941e670f4971bf1c34ff3fa0e6c1
 ```
 
-#### _**Test permissions**_
+## _**Test permissions**_
 
 Default user is jenkins, and perissions were set accordingly.
 
@@ -84,7 +84,7 @@ bash: /certs/client/Hello.txt: Read-only file system
 
 ```
 
-#### _**Test remote connections**_
+## _**Test remote connections**_
 
 Now lets find jenkins IP ADDRESS and set firewall rules, rootles container, the use must set firwall rules
 
@@ -105,5 +105,7 @@ We are set and secure to unlock Admin password
 [1]: https://yarboa.github.io/podman/update/2020/05/12/podman-introduction.html
 [2]: https://8gwifi.org/docs/podman-jenkins.jsp
 [3]: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/finding_running_and_building_containers_with_podman_skopeo_and_buildah#running_containers_as_root_or_rootless
+
+---
 
 [![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-31.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-31)

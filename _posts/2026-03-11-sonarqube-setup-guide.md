@@ -233,7 +233,7 @@ SonarQube performs two different types of analysis depending on when it runs:
 
 **What gets analyzed:**
 
-```
+``` bash
 Your PR changes 2 files out of 100 in the project:
 ✓ src/auth.py (modified)
 ✓ tests/test_auth.py (new file)
@@ -250,7 +250,7 @@ SonarQube analyzes: Only these 2 files
 
 **What gets analyzed:**
 
-```
+``` bash
 All 100 files in your project:
 ✓ src/auth.py
 ✓ src/database.py
@@ -261,7 +261,7 @@ All 100 files in your project:
 
 ### The Workflow
 
-```
+``` bash
 1. Create PR → PR Analysis (diff only) → Shows only new issues
                      ↓
 2. Merge to main → Main Analysis (full scan) → Updates baseline & metrics

@@ -11,7 +11,7 @@ This post share some simple commands for converting cloud fedora image to graphi
 During day to day work there is a need to reproduce test scenarios/ bugs inside
 different environments at your dev working station or test labs, this blog deals more with graphical test environments..
 
-### Prepare cloud Fedora-39 image for the work
+## Prepare cloud Fedora-39 image for the work
 
 - Download Fedora39 cloud image for [Fedora39](https://dl.fedoraproject.org/pub/fedora/linux/releases/39/Cloud/x86_64/images/Fedora-Cloud-Base-39-1.5.x86_64.qcow2)
 
@@ -28,7 +28,7 @@ systemctl get-default
 multi-user.target
 ```
 
-### Running Fedora machine
+## Running Fedora machine
 
 ``` bash
 /usr/bin/qemu-system-x86_64 -smp 12 -enable-kvm -m 2G -machine q35 -cpu host -vnc 0.0.0.0:3 -k en-us -device virtio-net-pci,netdev=n0,mac=FE:30:26:a6:91:2d -netdev user,id=n0,net=10.0.2.0/24,hostfwd=tcp::2224-:22 -drive file=./Fedora-Cloud-Base-39-orig-1.5.x86_64.qcow2,index=0,media=disk,format=qcow2,if=virtio,snapshot=off&
@@ -74,7 +74,7 @@ vda    252:0    0   20G  0 disk
                                 /
 ```
 
-### Convert cloud Fedora-39 image to graphical.target with Wayland compositor
+## Convert cloud Fedora-39 image to graphical.target with Wayland compositor
 
 My goal is to run Wayland compositor instead of X11 server, we also need to install Windows Manager that use this compositor, i found this article very usefull [Switch display managers with Fedora][1] and [Adding GUI to fedora][2]  
 
@@ -146,5 +146,7 @@ Reboot and check
 
 [1]: https://www.if-not-true-then-false.com/2018/fedora-switch-display-manager/
 [2]: https://docs.fedoraproject.org/en-US/fedora-server/usecase-gui-addon/
+
+---
 
 [![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui)

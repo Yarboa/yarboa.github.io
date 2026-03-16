@@ -12,11 +12,11 @@ In this short blog, i will emphasis the differences for rootless.
 Benefits and difference of Podman vs Docker described in [opensource.com][2]
 In addition to security advantages, running podman in rootless show its maturity and reliability.
 
-#### _**Installation RHEL/Centos 7.X**_
+## _**Installation RHEL/Centos 7.X**_
 
 Refer the following [centos/podman][4] guide
 
-#### _**Set and check host config**_
+## _**Set and check host config**_
 
 ```bash
 sudo -i
@@ -25,7 +25,7 @@ sysctl -p /etc/sysctl.d/userns.conf
 
 ```
 
-#### _**Set and check rootless user**_
+## _**Set and check rootless user**_
 
 ```bash
 
@@ -63,7 +63,7 @@ podman run -i -v $(pwd)/mysql-data:/var/lib/mysql/data:Z -e MYSQL_USER=user -e M
 
 container will run till stopped
 
-#### _**Test it with python connection**_
+## _**Test it with python connection**_
 
 ```bash
 netstat -nap | grep 3306
@@ -93,9 +93,9 @@ pip install mysql # in your python virtualene
 [3]: https://www.redhat.com/sysadmin/behind-scenes-podman
 [4]: https://www.redhat.com/sysadmin/rootless-podman-makes-sense
 
-#### _**Further reading**_
+## _**Further reading**_
 
 [rh.dev.blog][1], [opensource.com][2], [redhat.blog][3], [redhat.blog][4]
 
+---
 [![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-12.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/podman-introduction-2020-05-12)
--------
