@@ -5,7 +5,10 @@
   "scripts": {
     "serve": "eleventy --serve --port=8080",
     "build": "eleventy",
-    "debug": "DEBUG=Eleventy* eleventy"
+    "debug": "DEBUG=Eleventy* eleventy",
+    "lint": "markdownlint '_posts/**/*.md'",
+    "lint:fix": "markdownlint '_posts/**/*.md' --fix",
+    "setup-hooks": "git config core.hooksPath .githooks"
   },
   "keywords": [
     "blog",
@@ -14,6 +17,7 @@
   "author": "Yarboa",
   "license": "MIT",
   "devDependencies": {
-    "@11ty/eleventy": "^3.1.2"
+    "@11ty/eleventy": "^3.1.2",
+    "markdownlint-cli": "^0.39.0"
   }
 }

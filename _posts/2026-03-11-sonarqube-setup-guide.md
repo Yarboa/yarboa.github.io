@@ -8,26 +8,29 @@ categories: containers code-quality
 
 SonarQube is a powerful code quality and security analysis tool.  
 This guide shows you how to:
- - set it up locally.
- - execute scans.
- 
+
+- set it up locally.
+- execute scans.
+
 ## Why should you care?
 
 SonarQube automatically analyzes code pytest coverage XML and tracks
-Coverage of code blocks. 
+Coverage of code blocks.
 It also detects:
- - security vulnerabilities like SQL injection.hardcoded secrets.
- - measures code quality metrics such as cognitive complexity and code duplication.
- - coverage level.
+
+- security vulnerabilities like SQL injection.hardcoded secrets.
+- measures code quality metrics such as cognitive complexity and code duplication.
+- coverage level.
 
 This continuous analysis helps maintain clean, secure, and maintainable code without manual review of coverage reports.
 
 ## How it works?
 
 SonarQube operates on a client-server model:  
- - SonarQube server that stores analysis results and quality metrics.  
- - Scanner client (CLI tool or container) analyzes your code locally.  
- 
+
+- SonarQube server that stores analysis results and quality metrics.  
+- Scanner client (CLI tool or container) analyzes your code locally.  
+
 Client uploades analysis results to the server.
 In case server threshold is low, client will complete with failure
 
@@ -63,11 +66,12 @@ When you see "SonarQube is operational", it's ready. Press `Ctrl+C` to exit the 
 
 ### Initial Setup
 
-1. Open http://localhost:9000 in your browser
+1. Open <http://localhost:9000> in your browser
 2. Login with default credentials: `admin` / `admin`
 3. Change the default password:
 
    **Using the API (for automation)**
+
    ```bash
    curl -u admin:admin -X POST "http://localhost:9000/api/users/change_password?login=admin&previousPassword=admin&password=NewPassword@123"
    ```
@@ -88,6 +92,7 @@ When you see "SonarQube is operational", it's ready. Press `Ctrl+C` to exit the 
    - Click "Generate" and **save the token** - you'll need it for scanning
 
    **Option B: Using the API (for automation)**
+
    ```bash
    # Generate a new token
    curl -u admin:NewPassword@123 -X POST \
@@ -95,6 +100,7 @@ When you see "SonarQube is operational", it's ready. Press `Ctrl+C` to exit the 
    ```
 
    Response example:
+
    ```json
    {
      "login": "admin",
@@ -107,12 +113,14 @@ When you see "SonarQube is operational", it's ready. Press `Ctrl+C` to exit the 
    **Save the token value** - it won't be shown again!
 
    **To revoke a token:**
+
    ```bash
    curl -u admin:NewPassword123 -X POST \
      "http://localhost:9000/api/user_tokens/revoke?name=remote_automation_token"
    ```
 
    **To list all tokens:**
+
    ```bash
    curl -u admin:NewPassword123 \
      "http://localhost:9000/api/user_tokens/search" | jq .
@@ -142,6 +150,7 @@ sonar.python.coverage.reportPaths=coverage.xml
 ```
 
 **Note:** You can add exclusions if needed:
+
 ```properties
 # Exclusions (optional)
 sonar.exclusions=**/tests/**,**/*_test.py,**/test_*.py,**/__pycache__/**,**/*.pyc
@@ -185,6 +194,7 @@ The scanner will automatically use your `sonar-project.properties` configuration
 The container must see files at the same absolute paths as referenced in `coverage.xml`. If coverage.xml contains paths like `/home/user/project/src/file.py`, the container must also see files at `/home/user/project/src/file.py` - not `/usr/src/src/file.py`. Using `-v $(pwd):$(pwd):z` ensures path matching, which is critical for coverage reporting to work correctly.
 
 **Complete workflow example:**
+
 ```bash
 # 1. Generate coverage
 uv pip install pytest-cov
@@ -204,7 +214,7 @@ podman run --rm \
 
 ### View Results
 
-After scanning completes, view the results at http://localhost:9000
+After scanning completes, view the results at <http://localhost:9000>
 
 ## Advanced: Usage of SonarQube in CI/CD Workflow
 
@@ -215,12 +225,14 @@ The following sections describe advanced integration scenarios with CI/CD pipeli
 SonarQube performs two different types of analysis depending on when it runs:
 
 ### Pull Request Analysis (Differential Scan)
+
 - **Scans only the changed files** - analyzes just the code you modified in the PR
 - **Fast and focused** - shows only new issues introduced by your changes
 - **Prevents new technical debt** - blocks PRs that don't meet quality standards
 - **Does NOT update** the main project metrics
 
 **What gets analyzed:**
+
 ```
 Your PR changes 2 files out of 100 in the project:
 ✓ src/auth.py (modified)
@@ -230,12 +242,14 @@ SonarQube analyzes: Only these 2 files
 ```
 
 ### Main Branch Analysis (Full Scan)
+
 - **Scans the entire codebase** - analyzes all files in your project
 - **Updates overall metrics** - coverage, bugs, code smells, security issues
 - **Creates the baseline** - future PR scans compare against this
 - **Tracks trends** - shows project health over time
 
 **What gets analyzed:**
+
 ```
 All 100 files in your project:
 ✓ src/auth.py
@@ -254,6 +268,7 @@ All 100 files in your project:
 ```
 
 This two-stage approach ensures:
+
 - PRs get fast feedback on new code quality
 - Main branch maintains accurate overall project health metrics
 
@@ -261,23 +276,27 @@ This two-stage approach ensures:
 
 **Important:** SonarQube Community Edition has significant limitations compared to Developer/Enterprise editions:
 
-#### What Community Edition CANNOT Do:
+#### What Community Edition CANNOT Do
+
 - ❌ **No branch analysis** - Cannot analyze multiple branches separately with `-Dsonar.branch.name`
 - ❌ **No Pull Request decoration** - Cannot analyze PRs with `-Dsonar.pullrequest.*` parameters
 - ❌ **No branch comparison** - Cannot compare one branch against another
 - ❌ **No multiple branches in one project** - Each scan overwrites the previous analysis
 
-#### What Community Edition CAN Do:
+#### What Community Edition CAN Do
+
 - ✅ **Full codebase analysis** - Scans the entire project
 - ✅ **Quality metrics** - Coverage, bugs, code smells, security hotspots
 - ✅ **Historical trends** - Track changes over time in the Activity tab
 - ✅ **Quality Gates** - Set thresholds and check compliance
 - ✅ **New Code Period** - Define what counts as "new code" (by version, days, or reference)
 
-#### Workarounds for Community Edition:
+#### Workarounds for Community Edition
 
 **To analyze different branches:**
+
 1. **Option A:** Scan different branches as separate projects:
+
    ```bash
    # Main branch
    podman run --rm -v $(pwd):$(pwd):z -w $(pwd) --network host \
@@ -320,13 +339,14 @@ podman run --rm \
 ```
 
 This will:
+
 - Analyze **all source files** in your project (not just changed files)
 - Include **test coverage** data from coverage.xml
 - Update all **code quality metrics** (bugs, vulnerabilities, code smells)
 - Show **cognitive complexity** for all functions
 - Report overall project health
 
-**View the results at:** http://localhost:9000
+**View the results at:** <http://localhost:9000>
 
 The results show the complete state of your branch with all quality metrics and coverage data.
 
@@ -336,7 +356,7 @@ Quality Gates ensure code meets minimum quality standards. When configured, the 
 
 ### Configure Quality Gate in SonarQube
 
-1. In SonarQube UI at http://localhost:9000, go to **Quality Gates**
+1. In SonarQube UI at <http://localhost:9000>, go to **Quality Gates**
 2. Click "Create" or edit the default "Sonar way"
 3. Add conditions for **Overall Code**:
    - Overall Coverage: `< 70%` (Error)
@@ -361,6 +381,7 @@ podman run --rm \
 ```
 
 The scanner will:
+
 - Upload analysis results
 - Wait for Quality Gate evaluation
 - **Exit with error code 1** if Quality Gate fails (e.g., coverage < 70%)

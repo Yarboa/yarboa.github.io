@@ -117,7 +117,6 @@ You will see the login page.
 [1]: https://www.credly.com/badges/121cd37b-40a5-4bcd-8a19-b841cb055b21
 [2]: https://docs.openshift.com/container-platform/3.11/architecture/core_concepts/builds_and_image_streams.html#source-build
 [3]: https://github.com/openshift/source-to-image/tree/master
-[4]: https://github.com/Yarboa/beyond-tutorial
 [5]: https://github.com/sclorg/django-ex/tree/master
 [6]: https://opensource.com/article/18/10/podman-more-secure-way-run-containers
 [7]: https://www.redhat.com/sysadmin/podman-rest-api

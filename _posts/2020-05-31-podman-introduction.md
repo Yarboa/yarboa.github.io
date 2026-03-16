@@ -33,13 +33,14 @@ Writing manifest to image destination
 Storing signatures
 d36cb7ab60042e6687e221c9bfdc4b0c674e7753cff56f71bc3bd66e957598cc
 ```
+
 If no error occured we can continue with jenkins.
 
 #### _**Follow jenkins simple steps**_
 
 Track the following [podman.jenkins][2]
 
-Either use podman volume create for data persistence, refere previous blog related to directory 
+Either use podman volume create for data persistence, refere previous blog related to directory
 ownership, or use local directory, similar to the blog
 
 ```bash
@@ -52,6 +53,7 @@ podman container run  --name jenkins-blueocean   --rm   --detach   --privileged 
 ```
 
 Connect into the container through:
+
 ```bash
 [stack@RHEL7 ~]$ podman ps
 CONTAINER ID  IMAGE                                 COMMAND  CREATED             STATUS                 PORTS                   NAMES
@@ -84,7 +86,6 @@ bash: /certs/client/Hello.txt: Read-only file system
 
 #### _**Test remote connections**_
 
-
 Now lets find jenkins IP ADDRESS and set firewall rules, rootles container, the use must set firwall rules
 
 ```bash
@@ -100,8 +101,6 @@ curl $JENKINS:8080
 ```
 
 We are set and secure to unlock Admin password
- 
-
 
 [1]: https://yarboa.github.io/podman/update/2020/05/12/podman-introduction.html
 [2]: https://8gwifi.org/docs/podman-jenkins.jsp

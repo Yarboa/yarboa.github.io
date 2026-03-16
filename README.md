@@ -33,10 +33,35 @@ categories: category-name
 Your post content goes here...
 ```
 
+**⚠️ CRITICAL: Frontmatter Format**
+
+The frontmatter MUST start and end with **exactly three hyphens** (`---`):
+
+```markdown
+---              ✅ Correct (3 hyphens)
+layout: post
+---
+```
+
+```markdown
+--               ❌ Wrong (2 hyphens) - will NOT work!
+layout: post
+---
+```
+
 **Important fields:**
 - `layout: post` - Required, tells Eleventy to use the post layout
 - `title: "..."` - Your post title (use quotes)
-- `categories: ...` - Used in the URL path (e.g., `fedora`, `podman update`, `containers`)
+- `categories: ...` - Used in the URL path
+
+**Category Format:**
+
+- **Single word**: `categories: fedora` → `/fedora/YYYY/MM/DD/title.html`
+- **Multi-word (spaces)**: `categories: podman update` → `/podman/update/YYYY/MM/DD/title.html`
+- **Multi-word (hyphens)**: `categories: code-quality` → `/code-quality/YYYY/MM/DD/title.html`
+- **Multiple categories**: `categories: containers code-quality` → `/containers/code-quality/YYYY/MM/DD/title.html`
+
+**Note:** Do not use commas in categories (e.g., `containers, code-quality` will fail)
 
 ### 3. Write your content
 
@@ -49,6 +74,11 @@ https://yarboa.github.io/{category}/{YYYY}/{MM}/{DD}/post-title.html
 - File: `_posts/2026-02-18-my-fedora-tip.md`
 - Category: `fedora`
 - URL: `https://yarboa.github.io/fedora/2026/02/18/my-fedora-tip.html`
+
+**Example with multi-word category**:
+- File: `_posts/2026-03-11-sonarqube-setup-guide.md`
+- Categories: `containers code-quality`
+- URL: `https://yarboa.github.io/containers/code-quality/2026/03/11/sonarqube-setup-guide.html`
 
 ### 4. Preview locally (optional)
 
@@ -95,24 +125,18 @@ podman build -f Containerfile.eleventy.fedora -t eleventy-fedora:latest .
 **Run the container:**
 
 ```bash
-# UBI version
-podman run --replace -it \
+podman run -d -u root --replace -it \
   --name eleventy-dev \
   -v $(pwd):/app:Z \
   -p 8080:8080 \
   localhost/eleventy-ubi:latest
-
-# Fedora version
-podman run --replace -it \
-  --name eleventy-dev \
-  -v $(pwd):/app:Z \
-  -p 8080:8080 \
-  localhost/eleventy-fedora:latest
 ```
 
-**Important flags:**
-- `-v $(pwd):/app:Z` - Mounts current directory (`:Z` for SELinux)
-- `-p 8080:8080` - Maps port 8080 to localhost
+**View logs:**
+
+```bash
+podman logs -f eleventy-dev
+```
 
 **Stop the container:**
 
@@ -260,6 +284,59 @@ NPM scripts:
 - `npm run serve` - Development server
 - `npm run build` - Build site to `_site/`
 - `npm run debug` - Debug mode with verbose output
+- `npm run lint` - Check markdown files for errors
+- `npm run lint:fix` - Auto-fix markdown issues
+- `npm run setup-hooks` - Configure git hooks
+
+---
+
+## Git Hooks and Markdown Linting
+
+This project uses git hooks to ensure markdown quality before commits.
+
+### Initial Setup
+
+After cloning the repository, run:
+
+```bash
+npm install
+npm run setup-hooks
+```
+
+This configures git to use the `.githooks/` directory.
+
+### What the Pre-commit Hook Does
+
+The hook automatically runs before each commit:
+
+1. Checks staged markdown files in `_posts/`
+2. Validates frontmatter format (checks for `---` delimiters)
+3. Checks markdown syntax and style
+4. **Blocks commit** if errors are found
+
+### Manual Linting
+
+**Check for errors:**
+```bash
+npm run lint
+```
+
+**Auto-fix issues:**
+```bash
+npm run lint:fix
+```
+
+**Note:** Most linting errors can be automatically fixed with `npm run lint:fix`. For errors that cannot be auto-fixed (like frontmatter delimiters), you'll need to manually correct them.
+
+### Configuration
+
+Linting rules are defined in `.markdownlint.json`. Key rules:
+
+- `MD001`: Heading levels increment by one
+- `MD022`: Headings should be surrounded by blank lines
+- `MD047`: Files should end with a single newline
+- `MD013`: Disabled (no line length limit)
+- `MD033`: Disabled (allows inline HTML)
 
 ---
 
@@ -283,6 +360,23 @@ NPM scripts:
 1. Check [Actions tab](https://github.com/Yarboa/yarboa.github.io/actions) for errors
 2. Verify `package-lock.json` is committed
 3. Check `.eleventy.js` syntax
+
+### Git hook not running
+
+If the pre-commit hook doesn't run:
+
+```bash
+# Re-run setup
+npm run setup-hooks
+
+# Verify git config
+git config core.hooksPath
+# Should output: .githooks
+
+# Check hook is executable
+ls -la .githooks/pre-commit
+# Should show: -rwxr-xr-x
+```
 
 ---
 
