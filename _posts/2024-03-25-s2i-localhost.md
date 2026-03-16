@@ -1,11 +1,11 @@
 ---
 
 layout: post
-title:  "s2i with podman"
+title:  "source2image with podman"
 categories: containers
 ---
 
-# s2i as standalone from github repo and branch
+## s2i as standalone from github repo and branch
 
 This post shares some simple commands for using openshift s2i with podman
 as a standalone django-app builder from github.

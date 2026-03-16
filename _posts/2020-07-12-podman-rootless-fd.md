@@ -20,7 +20,7 @@ through git or pip.
 I will review in the following article the operation and checks for podman.
 and how to work around file descriptors errors while building the image.
 
-#### _**install Centos/Rhel 7.X packages**_
+## _**install Centos/Rhel 7.X packages**_
 
 ```bash
 sudo -i
@@ -29,7 +29,7 @@ echo "user.max_user_namespaces=28633" > /etc/sysctl.d/userns.conf
 sysctl -p /etc/sysctl.d/userns.conf
 ```
 
-#### _**Run command  in user namespace**_
+## _**Run command  in user namespace**_
 
 ```bash
 [stack@RHEL7 ~]$ podman unshare cat /proc/self/uid_map
@@ -41,7 +41,7 @@ sysctl -p /etc/sysctl.d/userns.conf
          1     165536      65536
 ```
 
-#### _**Consume dockerhub images**_
+## _**Consume dockerhub images**_
 
 ```bash
 [stack@RHEL7 ~]$ podman login -u yarboa docker.io
@@ -57,7 +57,7 @@ Verify glibc is packed in the container
 [stack@RHEL7 ~]$ podman inspect docker.io/rackspacedot/python37
 ```
 
-#### _**Run and verify container is ready for running tempest**_
+## _**Run and verify container is ready for running tempest**_
 
 Run container
 
@@ -78,7 +78,7 @@ root@e9762ca9a49c:/# python -m pip install -U tempest
 OSError: [Errno 24] Too many open files: '/tmp/pip-ephem-wheel-cache-_8l0t8s7'
 ```
 
-#### _**Increase user files descriptor**_
+## _**Increase user files descriptor**_
 
 Googling a bit brings you to the follwoing [podman-ticket][2]
 Searching a bit more brings you to the follwoing [article][3]
