@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run-podman-on-windows - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Run-podman-on-windows</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2022-10-11" itemprop="datePublished">
+        October 11, 2022
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>In this blog I will explain how to run podman containers on windows.
+Distributed teams should have common dev/testing environment to collaborate.
+Once Pull Request/Merge Request pushed to git server repo, automated tests are running
+on github/gitlab pipelines.
+Once gating tests are passed other team members could start review the features/fixes
+contributed by repo members.</p>
+<p>What are the options of a contributer with Windows host,
+Who wishes to contribute Linux distribution project?</p>
+<p>Options:</p>
+<ol>
+<li>Install virtualization solution, example vagrant with linux distro.</li>
+<li>Install containers with equivalent image.</li>
+</ol>
+<p>Recently I read this podman blog <a href="https://www.redhat.com/sysadmin/run-podman-windows">run podman on windows</a>,
+during tracking the outputs of msi installation, I realised that
+podman Windows installer uses Windows Substem for Linux, <a href="https://learn.microsoft.com/en-us/windows/wsl/install">WSL</a>.</p>
+<p>Later on podman docs refered to wsl2 <a href="https://podman.io/getting-started/installation">Windows podman install</a></p>
+<p><em><strong>Setup windows environment for linux</strong></em></p>
+<p>Run PowerShell command with elevated permissions [Win+x]:</p>
+<pre><code class="language-Command">winget install Microsoft.WindowsTerminal
+</code></pre>
+<p>Install wsl and set to version 2</p>
+<pre><code class="language-PowerShell">wsl --install
+</code></pre>
+<p>Installation ask to reboot
+<strong>The requested operation is successful.
+Change will not be effective untill the subsytem is rebooted.</strong></p>
+<p>Change to wsl v2</p>
+<pre><code class="language-PowerShell">wsl --set-default-version 2
+</code></pre>
+<p>Verify wsl is in version 2</p>
+<pre><code class="language-PowerShell">wsl --status
+</code></pre>
+<p>Thanks to this blog, <a href="https://dev.to/bowmanjd/install-fedora-on-windows-subsystem-for-linux-wsl-4b26">install fedora on Windows</a></p>
+<p>Download fedora36 image from here
+<a href="https://kojipkgs.fedoraproject.org/packages/Fedora-Container-Base/36/%7Bbuild-date%7D/images">https://kojipkgs.fedoraproject.org/packages/Fedora-Container-Base/36/{build-date}/images</a></p>
+<p>select the relevant distribution such as x86_64</p>
+<p>Download the web browser, could change with newer versions:</p>
+<p><a href="https://kojipkgs.fedoraproject.org/packages/Fedora-Container-Base/36/%7Bbuild-date%7D/images/Fedora-Container-Base-%7Bbuild-date%7D.x86_64.tar.xz">https://kojipkgs.fedoraproject.org/packages/Fedora-Container-Base/36/{build-date}/images/Fedora-Container-Base-{build-date}.x86_64.tar.xz</a></p>
+<p>extract the tar file and search for layer.tar inside Fedora-Container-Base-{build-date}.x86_64.tar
+Rename it to Fedoras-36-rootfs.tar</p>
+<p>Now fedora image could be imported to wsl, please note to replace the vars in &lt;&gt;
+With your computer vars</p>
+<p>Create a Directory for wsl imported images and replace it with your name</p>
+<pre><code class="language-PowerShell">mkdir {WslImageDir}
+wsl --import fedora {WslImageDir} C:\Users\{WindowsUser}\{SavedDir}\Fedora-36-rootfs.tar
+</code></pre>
+<p>Verify didtro is imported with wsl -l</p>
+<p>Now WSL is ready to run fedora distro</p>
+<pre><code class="language-PowerShell">wsl -d fedora
+</code></pre>
+<p>WSL fedora VM is running and user logged in vm console as user root
+To verify the distro, and user name</p>
+<pre><code class="language-PowerShell">cat /etc/redhat-release
+cd ~/
+pwd
+</code></pre>
+<p>Now we can update fedora and install podman inside the vm</p>
+<pre><code class="language-PowerShell">dnf update -y
+dnf install podman -y
+
+podman run ubi9-micro date
+</code></pre>
+<p>Image is downloaded and print the date</p>
+<p>Environment is ready, it is time to run a container and check it
+from the virtualmachine</p>
+<pre><code class="language-PowerShell">podman run --rm -d -p 8080:80 --name httpd docker.io/library/httpd
+curl http://localhost:8080/ -UseBasicParsing
+</code></pre>
+<p>Exit virtualmachine fedora
+Try curl from windows command line,
+From PowerShell/command.</p>
+<pre><code class="language-PowerShell">exit
+(curl http://localhost:8080/ -UseBasicParsing).Content
+</code></pre>
+<p>The following output should be expected.
+&lt;html&gt;&lt;body&gt;&lt;h1&gt;It works!&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;</p>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/run-podman-on-win"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/run-podman-on-win.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
