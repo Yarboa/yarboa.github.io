@@ -7,17 +7,15 @@ categories: virtualization
 
 
 This post share some simple commands for virtualmachines.  
-During day to day work there is a need to reproduce test scenarios/ bugs inside 
+During day to day work there is a need to reproduce test scenarios/ bugs inside
 different environments at your dev working station or test labs.
 
 With many cases, containers could be sufficient, but for other use cases interacts with containers as pods or docker compose, is not enough,  
 
 Automated tests with specific Operating Systems  can be run locally or against  AWS image or any other testing framwerk.
 
-
 That post uses few commands that could be automated inside bash scripts or ansible playbooks
 later on.
-
 
 ### Prepare cloud centos-stream-9 image for your work
 
@@ -33,14 +31,13 @@ curl --output-dir "/tmp" -O https://cloud.centos.org/centos/9-stream/x86_64/imag
 qemu-img resize /tmp/CentOS-Stream-GenericCloud-9-latest.x86_64.qcow2 +20G
 ```
 
-- Set root password, remove cloud-init option and enable root login 
+- Set root password, remove cloud-init option and enable root login
 
 ``` bash
 virt-customize --uninstall cloud-init --root-password password:${PASSWORD} \
 --edit '/etc/ssh/sshd_config: \
 s/#PermitRootLogin.*/PermitRootLogin yes/' -a /tmp/CentOS-Stream-GenericCloud-9-latest.aarch64.qcow2  
 ```
-
 
 - Run virtual machine with port forwarding:
 
@@ -78,4 +75,3 @@ growpart --free-percent=50 /dev/vda 1
 ```
 
 [![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/customize-c9s-vm.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/customize-c9s-vm)
-

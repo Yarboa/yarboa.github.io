@@ -8,10 +8,11 @@ In this post i would like to discuss my experience with file descriptors
  issues in rootless podman.  
 Tried to build from scratch openstack [nfv-tempest-plugin][1]  
 This openstack nfv-tempest plugin requires:
+
 * python3.6 and up.  
 * pip tempest  
 * pip  python-tempestconf  
-* pip  neutron-tempest-plugin   
+* pip  neutron-tempest-plugin
 
 once the above installed we are ready to install nfv-tempest-plugin
 through git or pip.
@@ -40,7 +41,6 @@ sysctl -p /etc/sysctl.d/userns.conf
          1     165536      65536
 ```
 
-
 #### _**Consume dockerhub images**_
 
 ```bash
@@ -59,7 +59,8 @@ Verify glibc is packed in the container
 
 #### _**Run and verify container is ready for running tempest**_
 
-Run container 
+Run container
+
 ```bash
 [stack@RHEL7 ~]$ podman run -it docker.io/rackspacedot/python37 /bin/bash
 root@e9762ca9a49c:/# 
@@ -70,17 +71,20 @@ root@e9762ca9a49c:/# ulimit -Sn
 ```
 
 Install required packages:
+
 ```bash
 root@e9762ca9a49c:/# python -m pip install -U pip
 root@e9762ca9a49c:/# python -m pip install -U tempest
 OSError: [Errno 24] Too many open files: '/tmp/pip-ephem-wheel-cache-_8l0t8s7'
 ```
+
 #### _**Increase user files descriptor**_
 
 Googling a bit brings you to the follwoing [podman-ticket][2]
-Searching a bit more brings you to the follwoing [article][3] 
+Searching a bit more brings you to the follwoing [article][3]
 
 Add rootless podman user number of files
+
 ```bash
 sudo -i
 vi /etc/security/limits.conf
@@ -91,13 +95,16 @@ stack   hard   nofile    1048576
 
 sysctl -p
 ```
+
 Logout as rootles user and login
 
 ```bash
 [stack@RHEL7 ~]$ ulimit -n
 1048576
 ```
+
 We are ready to run podman image with new ulimits
+
 ```bash
 podman run --ulimit nofile=1048576:1048576 -it docker.io/rackspacedot/python37 /bin/bash
 
@@ -106,6 +113,7 @@ root@e9762ca9a419:/# ulimit -Hn
 ```
 
 Try to install tempest
+
 ```bash
 root@e9762ca9a419:/# python -m pip install -U tempest
 root@e9762ca9a419:/# python -m pip install -U python-tempestconf

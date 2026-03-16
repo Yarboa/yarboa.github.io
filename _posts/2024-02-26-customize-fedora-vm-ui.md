@@ -28,13 +28,13 @@ systemctl get-default
 multi-user.target
 ```
 
-### Running Fedora machine 
+### Running Fedora machine
 
 ``` bash
 /usr/bin/qemu-system-x86_64 -smp 12 -enable-kvm -m 2G -machine q35 -cpu host -vnc 0.0.0.0:3 -k en-us -device virtio-net-pci,netdev=n0,mac=FE:30:26:a6:91:2d -netdev user,id=n0,net=10.0.2.0/24,hostfwd=tcp::2224-:22 -drive file=./Fedora-Cloud-Base-39-orig-1.5.x86_64.qcow2,index=0,media=disk,format=qcow2,if=virtio,snapshot=off&
 ```
 
-Ssh into running vm, 
+Ssh into running vm,
 
 ``` bash
 
@@ -74,8 +74,6 @@ vda    252:0    0   20G  0 disk
                                 /
 ```
 
-
-
 ### Convert cloud Fedora-39 image to graphical.target with Wayland compositor
 
 My goal is to run Wayland compositor instead of X11 server, we also need to install Windows Manager that use this compositor, i found this article very usefull [Switch display managers with Fedora][1] and [Adding GUI to fedora][2]  
@@ -87,7 +85,6 @@ Last metadata expiration check: 0:03:30 ago on Wed 28 Feb 2024 11:40:16 AM UTC.
 Installed Environment Groups:
    Fedora Cloud Server
 ```
-
 
 Choose GUI to install, pretty hevay more then 1.3G and 1400 rpms to install
 
@@ -102,7 +99,7 @@ Choose GUI to install, pretty hevay more then 1.3G and 1400 rpms to install
 
 ```
 
-Ssh into running vm, 
+Ssh into running vm,
 
 ``` bash
 
@@ -110,7 +107,7 @@ ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null  root@localhost -p
 
 ```
 
-Connect with vnc-client to 0.0.0.0:3 server 
+Connect with vnc-client to 0.0.0.0:3 server
 Use the GUI login console for root
 
 Now lets check what type of window server we have Wayland or X11
@@ -123,8 +120,7 @@ tty
 
 ```
 
-
-Lets open Terminal from graphical console 
+Lets open Terminal from graphical console
 
 ``` bash
 [root@localhost ~]# echo $XDG_SESSION_TYPE
@@ -132,6 +128,7 @@ wayland
 ```
 
 In case you choose different Desktop to install and the following is set
+
 ``` bash
 [root@localhost ~]# echo $XDG_SESSION_TYPE
 x11
@@ -145,11 +142,9 @@ sed 's/#WaylandEnable=false/WaylandEnable=true/' /etc/gdm/custom.conf
 
 ```
 
-Reboot and check 
-
+Reboot and check
 
 [1]: https://www.if-not-true-then-false.com/2018/fedora-switch-display-manager/
 [2]: https://docs.fedoraproject.org/en-US/fedora-server/usecase-gui-addon/
-
 
 [![HitCount](https://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui.svg?style=flat&show=unique)](http://hits.dwyl.com/yarboa/yarboagithubio/customize-fedora-vm-ui)

@@ -36,7 +36,7 @@ winget install Microsoft.WindowsTerminal
 
 Install wsl and set to version 2
 
-``` PowerShell 
+``` PowerShell
 wsl --install
 ```
 
