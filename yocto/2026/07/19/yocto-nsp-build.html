@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building S32G3 Linux Auto with RPM Packages using Podman - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Building S32G3 Linux Auto with RPM Packages using Podman</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-07-19" itemprop="datePublished">
+        July 19, 2026
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2>Introduction</h2>
+<p>Recently, I've been working on creating Fedora RPMs for NSX components, which led me to explore how to integrate custom userspace components into embedded Linux distributions. This guide demonstrates how the NXP Yocto build system can seamlessly create RPM packages as part of its image build process. I'm sharing how to set up S32G3 Linux auto with Fedora-branch Linux repos and modern packaging practices using Podman, while extending it with custom userspace components.</p>
+<p>This guide provides step-by-step instructions for building the NXP S32G3 Linux BSP with RPM package support using Podman containerization, including how to extend it with non-standard userspace components.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>Podman installed on your host system</li>
+<li>~100GB free disk space for the build</li>
+<li>NXP S32G3 BSP sources and firmware binaries</li>
+<li>HSE firmware (only if building with HSE support)</li>
+</ul>
+<h3>Obtaining NXP Software and Documentation</h3>
+<p>To download updates, access firmware, and read documentation, you'll need an NXP account:</p>
+<ol>
+<li>
+<p><strong>Create NXP Account</strong></p>
+<ul>
+<li>Visit: <a href="https://www.nxp.com">https://www.nxp.com</a></li>
+<li>Create a free account</li>
+</ul>
+</li>
+<li>
+<p><strong>Request Software Download Access</strong></p>
+<ul>
+<li>Go to: <a href="https://www.nxp.com/webapp/swlicensing/sso/downloadSoftware.sp?catid=SW32G-STDSW-D">https://www.nxp.com/webapp/swlicensing/sso/downloadSoftware.sp?catid=SW32G-STDSW-D</a></li>
+<li>Request access for S32G software downloads</li>
+<li>Available downloads include:
+<ul>
+<li>S32G Linux BSP and firmware</li>
+<li>HSE (Hardware Security Engine) firmware</li>
+<li>Documentation and reference manuals</li>
+<li>SDK tools and utilities</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Join NXP Community</strong></p>
+<ul>
+<li>S32G Community Forum: <a href="https://community.nxp.com/t5/S32G/bd-p/S32G">https://community.nxp.com/t5/S32G/bd-p/S32G</a></li>
+<li>Get support and ask questions</li>
+<li>Access community-contributed resources</li>
+<li>Stay updated on latest releases and patches</li>
+</ul>
+</li>
+</ol>
+<h2>Directory Structure Setup</h2>
+<p>Create the working directory structure on your host machine:</p>
+<pre><code class="language-bash">mkdir -p ~/tests/s32g3workspace/{sources,hse_binaries,build-output}
+cd ~/tests/s32g3workspace
+</code></pre>
+<h2>Step 1: Install repo Tool on Host</h2>
+<p>Download and configure the <code>repo</code> tool (Google's multi-repository management tool):</p>
+<pre><code class="language-bash">mkdir -p ~/bin
+curl https://storage.googleapis.com/git-repo-downloads/repo &gt; ~/bin/repo
+chmod a+x ~/bin/repo
+export PATH=~/bin:$PATH
+</code></pre>
+<h2>Step 2: Initialize and Sync BSP Sources</h2>
+<p>Initialize the NXP Auto Linux Yocto BSP repository:</p>
+<pre><code class="language-bash">cd ~/tests/s32g3workspace/sources
+repo init -u https://github.com/nxp-auto-linux/auto_yocto_bsp.git -b release/bsp&lt;BRANCH_VER&gt;
+repo sync
+</code></pre>
+<p>This will download all necessary Yocto layers and BSP components (typically 30-50GB).</p>
+<h2>Step 3: Downloading DDR Firmware Binaries</h2>
+<p>For detailed instructions on obtaining the DDR firmware files (ddr_fw_ecc_off.bin and ddr_fw_ecc_on.bin), licensing requirements, and proper download procedures, refer to the NXP community discussion:
+<a href="https://community.nxp.com/t5/S32G/I-don-t-know-where-the-DDR-FW-is-during-the-linux-BSP-44-0-yocto/m-p/2141767">https://community.nxp.com/t5/S32G/I-don-t-know-where-the-DDR-FW-is-during-the-linux-BSP-44-0-yocto/m-p/2141767</a></p>
+<p>Copy the required DDR firmware binaries from your NXP S32G3 userspace package:</p>
+<pre><code class="language-bash"># From host directory
+cp ~/tests/NXP-S32G3-userspace/s32g3_linuxbsp_&lt;BRANCH_VER&gt;_binaries/s32g399aevb3/ddr_fw_ecc_off.bin \
+   ~/tests/s32g3workspace/sources/meta-alb/meta-alb-bsp/recipes-bsp/ddr-firmware/files/
+
+cp ~/tests/NXP-S32G3-userspace/s32g3_linuxbsp_&lt;BRANCH_VER&gt;_binaries/s32g399aevb3/ddr_fw_ecc_on.bin \
+   ~/tests/s32g3workspace/sources/meta-alb/meta-alb-bsp/recipes-bsp/ddr-firmware/files/
+</code></pre>
+<h2>Step 4: Launch Podman Container</h2>
+<p>Start the Yocto build environment container with proper volume mappings:</p>
+<pre><code class="language-bash">podman run --replace \
+  -v ~/tests/s32g3workspace:/workdir:Z \
+  --workdir /workdir \
+  --userns=keep-id:uid=1000,gid=1000 \
+  --pids-limit=-1 \
+  -d -it \
+  --name yocto-test \
+  crops/poky:ubuntu-22.04 bash
+</code></pre>
+<p><strong>Flag explanations:</strong></p>
+<ul>
+<li><code>--replace</code>: Remove any existing container with the same name</li>
+<li><code>-v ~/tests/s32g3workspace:/workdir:Z</code>: Mount host directory with SELinux context</li>
+<li><code>--userns=keep-id</code>: Preserve host user ID to avoid permission issues</li>
+<li><code>--pids-limit=-1</code>: Unlimited process limit for bitbake parallelism</li>
+<li><code>crops/poky:ubuntu-22.04</code>: Official Yocto build container</li>
+</ul>
+<h2>Step 5: Initialize Yocto Build Environment (Inside Container)</h2>
+<p>Once inside the container:</p>
+<pre><code class="language-bash">cd /workdir/sources
+source nxp-setup-alb.sh -m s32g399aevb3
+</code></pre>
+<p>This script sets up the build directory structure and initializes the Yocto environment for the S32G399AEVB3 board.</p>
+<hr>
+<h2>Build Configuration Options</h2>
+<h3>Default Build (No Extra Features)</h3>
+<h4>Configure local.conf for Default Build</h4>
+<p>Edit the Yocto configuration file:</p>
+<pre><code class="language-bash">nano /workdir/sources/build_s32g399aevb3/conf/local.conf
+</code></pre>
+<p>Add or ensure only this section is present:</p>
+<pre><code class="language-bash"># Enable RPM package format instead of DEB
+PACKAGE_CLASSES = &quot;package_rpm&quot;
+</code></pre>
+<h4>Build the Default Image</h4>
+<p>Execute the Yocto build:</p>
+<pre><code class="language-bash">cd /workdir/sources/build_s32g399aevb3
+bitbake fsl-image-auto
+</code></pre>
+<p><strong>Build time:</strong> 60-120 minutes depending on system performance.</p>
+<h4>Default Build Output Locations</h4>
+<p>After successful completion, artifacts are located in:</p>
+<h5>Root Filesystem and Images</h5>
+<pre><code class="language-bash">tree /workdir/sources/build_s32g399aevb3/tmp/deploy/images/s32g399aevb3/
+├── fsl-image-auto-s32g399aevb3.rootfs.tar.bz2      # Compressed rootfs tarball
+├── fsl-image-auto-s32g399aevb3.rootfs.rpm          # RPM-based rootfs
+├── fsl-image-auto-s32g399aevb3.sdcard.bz2          # SD card image
+├── fsl-image-auto-s32g399aevb3.wic.bz2             # WIC disk image
+├── u-boot-s32g399aevb3.bin                         # U-Boot bootloader
+├── Image                                            # Linux kernel
+├── s32g399aevb3.dtb                                # Device tree blob
+└── [additional image formats]
+</code></pre>
+<h5>RPM Packages (all built packages)</h5>
+<pre><code class="language-bash">tree /workdir/sources/build_s32g399aevb3/tmp/deploy/rpm/
+├── s32g399aevb3/                  # Board-specific packages
+│   ├── ddr-firmware-*.rpm
+│   ├── linux-libc-dev-*.rpm
+│   └── [other architecture-specific packages]
+├── armv8a/                        # ARMv8 packages
+├── aarch64/                       # 64-bit ARM packages
+├── all/                           # Architecture-independent packages
+└── noarch/
+</code></pre>
+<h5>Build Logs</h5>
+<pre><code class="language-bash">/workdir/sources/build_s32g399aevb3/tmp/log/
+├── cooker/&lt;timestamp&gt;/
+│   ├── console-latest.log         # Main build log
+│   ├── runqueue-&lt;timestamp&gt;.log
+│   └── [task-specific logs]
+</code></pre>
+<h5>Copy Default Build Artifacts to Host</h5>
+<pre><code class="language-bash"># From inside container or via host
+cp -r /workdir/sources/build_s32g399aevb3/tmp/deploy/images/s32g399aevb3/ \
+      /workdir/build-output/default-build/
+
+cp -r /workdir/sources/build_s32g399aevb3/tmp/deploy/rpm/ \
+      /workdir/build-output/default-build/rpm-packages/
+</code></pre>
+<hr>
+<h2>Building Non-Standard Userspace Components</h2>
+<p>This section demonstrates how to extend the base build with custom userspace components. I used the HSE (Hardware Security Engine) component as a practical example of this approach, showing how to integrate optional NXP features while the same methodology applies to any custom daemon, tool, or application component you want to package into your image.</p>
+<h3>HSE Build Example</h3>
+<h4>Prerequisites for HSE Build</h4>
+<ol>
+<li>
+<p><strong>Obtain HSE Firmware</strong>: Download the HSE firmware package from NXP</p>
+<ul>
+<li>Example: <code>HSE_FW_S32G3XX_0_2_64_0</code></li>
+<li>Extract to a host directory accessible from the container</li>
+</ul>
+</li>
+<li>
+<p><strong>Prepare HSE Firmware Directory</strong></p>
+<pre><code class="language-bash"># On host, prepare the firmware structure
+mkdir -p ~/tests/s32g3workspace/HSE_FW_S32G3XX_0_2_64_0
+# Copy HSE firmware files into this directory
+cp /path/to/hse/firmware/* ~/tests/s32g3workspace/HSE_FW_S32G3XX_0_2_64_0/
+</code></pre>
+</li>
+</ol>
+<h4>Configure local.conf for HSE Build</h4>
+<p>Edit the Yocto configuration file:</p>
+<pre><code class="language-bash">nano /workdir/sources/build_s32g399aevb3/conf/local.conf
+</code></pre>
+<p>Add the following sections:</p>
+<pre><code class="language-bash"># Enable RPM package format instead of DEB
+PACKAGE_CLASSES = &quot;package_rpm&quot;
+
+##### HSE Security Features (Example of Optional Feature)
+# 1. Enable the secure boot DISTRO flag and append the HSE packages
+DISTRO_FEATURES:append = &quot; hse&quot;
+IMAGE_INSTALL:append = &quot; pkcs11-hse&quot;
+
+# 2. Point to the mapped host folder containing HSE firmware binary
+# The path is relative to the container's /workdir mount
+NXP_FIRMWARE_LOCAL_DIR = &quot;/workdir/HSE_FW_S32G3XX_0_2_64_0&quot;
+HSE_VERSION = &quot;0_2_64_0&quot;
+</code></pre>
+<p><strong>Configuration notes:</strong></p>
+<ul>
+<li><code>NXP_FIRMWARE_LOCAL_DIR</code>: Must point to the directory containing HSE firmware binaries</li>
+<li><code>HSE_VERSION</code>: Must match the firmware version string</li>
+<li><code>DISTRO_FEATURES:append = &quot; hse&quot;</code>: Enables HSE-related recipes</li>
+<li><code>IMAGE_INSTALL:append = &quot; pkcs11-hse&quot;</code>: Adds PKCS#11 HSE module to the image</li>
+</ul>
+<h4>Build with HSE</h4>
+<p>Execute the Yocto build with HSE support:</p>
+<pre><code class="language-bash">cd /workdir/sources/build_s32g399aevb3
+bitbake fsl-image-auto
+</code></pre>
+<p><strong>Build time:</strong> 90-150 minutes (additional time for HSE components).</p>
+<h4>HSE Build Output Locations</h4>
+<p>After successful completion, all artifacts are in the same base directories as default builds, but with additional HSE-specific packages and binaries.</p>
+<h5>Root Filesystem and Images (same structure as default)</h5>
+<pre><code class="language-bash">tree /workdir/sources/build_s32g399aevb3/tmp/deploy/images/s32g399aevb3/
+├── fsl-image-auto-s32g399aevb3.rootfs.rpm          # Includes HSE packages
+├── fsl-image-auto-s32g399aevb3.sdcard.bz2          # SD card with HSE FW
+└── [other formats with HSE]
+</code></pre>
+<h5>HSE-Specific RPM Packages</h5>
+<pre><code class="language-bash">tree /workdir/sources/build_s32g399aevb3/tmp/deploy/rpm/
+├── aarch64/
+│   ├── hse-firmware-0-2-64-0-*.rpm                # HSE firmware package
+│   ├── hse-linux-driver-*.rpm                     # HSE Linux driver
+│   ├── pkcs11-hse-*.rpm                           # PKCS#11 module for HSE
+│   ├── libhse-*.rpm                               # HSE libraries
+│   └── hse-tools-*.rpm                            # HSE utilities
+├── noarch/
+│   └── [HSE architecture-independent packages]
+└── [other packages]
+</code></pre>
+<h5>HSE Build Logs and Artifacts</h5>
+<pre><code class="language-bash">tree /workdir/sources/build_s32g399aevb3/tmp/
+├── deploy/
+│   ├── hse-firmware/                   # HSE firmware staging
+│   ├── images/s32g399aevb3/
+│   │   ├── hse_firmware_*.bin          # Binary HSE firmware
+│   │   └── [other files]
+│   └── rpm/
+│       └── [HSE RPM packages as above]
+├── work/
+│   ├── aarch64-*/hse-*                 # HSE recipe build directories
+│   └── s32g399aevb3-*/                 # Board-specific builds with HSE
+└── log/
+    └── [build logs including HSE compilation]
+</code></pre>
+<h5>Copy HSE Build Artifacts to Host</h5>
+<pre><code class="language-bash"># From inside container or via host
+cp -r /workdir/sources/build_s32g399aevb3/tmp/deploy/images/s32g399aevb3/ \
+      /workdir/build-output/hse-build/
+
+cp -r /workdir/sources/build_s32g399aevb3/tmp/deploy/rpm/ \
+      /workdir/build-output/hse-build/rpm-packages/
+</code></pre>
+<hr>
+<h2>Comparing Default vs HSE Builds</h2>
+<h3>File Size Differences</h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Default</th>
+<th>HSE Build</th>
+<th>Difference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fsl-image-auto-*.rootfs.rpm</td>
+<td>~500 MB</td>
+<td>~520 MB</td>
+<td>+20 MB (HSE FW)</td>
+</tr>
+<tr>
+<td>fsl-image-auto-*.sdcard.bz2</td>
+<td>~150 MB</td>
+<td>~160 MB</td>
+<td>+10 MB (HSE FW)</td>
+</tr>
+<tr>
+<td>Total RPM packages</td>
+<td>~2.5 GB</td>
+<td>~2.7 GB</td>
+<td>+200 MB (HSE libs)</td>
+</tr>
+</tbody>
+</table>
+<h3>Key Differences in Output</h3>
+<p><strong>Default Build:</strong></p>
+<ul>
+<li>Basic Linux kernel and bootloaders</li>
+<li>Standard ARM64 utilities</li>
+<li>DDR firmware (ecc_on/ecc_off variants)</li>
+<li>No security engine support</li>
+</ul>
+<p><strong>HSE Build (Extra RPMs example):</strong></p>
+<ul>
+<li>All default components</li>
+<li>HSE firmware binary</li>
+<li>PKCS#11 HSE module for cryptographic operations</li>
+<li>HSE Linux driver and userspace tools</li>
+<li>Additional security libraries</li>
+</ul>
+<hr>
+<h2>Generated Build Artifacts Location</h2>
+<p>This section shows where all generated work products are located after a successful build.</p>
+<h3>Quick Reference - Generated Artifacts</h3>
+<p><strong>Navigate to the build directory:</strong></p>
+<pre><code class="language-bash">cd /workdir/sources/build_s32g399aevb3
+</code></pre>
+<h3>1. Generated Images (Installation-Ready)</h3>
+<p><strong>Location:</strong> <code>./tmp/deploy/images/s32g399aevb3/</code></p>
+<p><strong>List images with timestamps:</strong></p>
+<pre><code class="language-bash">ls -ltr ./tmp/deploy/images/s32g399aevb3/
+</code></pre>
+<p><strong>Key bootable images:</strong></p>
+<ul>
+<li><code>fsl-image-auto-s32g399aevb3.sdcard.bz2</code> - SD card image (ready to flash)</li>
+<li><code>fsl-image-auto-s32g399aevb3.wic.bz2</code> - WIC disk image format</li>
+<li><code>fsl-image-auto-s32g399aevb3.rootfs.rpm</code> - RPM-based rootfs</li>
+<li><code>u-boot-s32g399aevb3.bin</code> - U-Boot bootloader binary</li>
+<li><code>Image</code> - Linux kernel image</li>
+<li><code>s32g399aevb3.dtb</code> - Device tree blob</li>
+</ul>
+<p><strong>Copy images to host output directory:</strong></p>
+<pre><code class="language-bash">cp -r ./tmp/deploy/images/s32g399aevb3/* /workdir/build-output/images/
+</code></pre>
+<hr>
+<h3>2. Generated RPM Packages (Installation-Ready)</h3>
+<p><strong>Location:</strong> <code>./tmp/deploy/rpm/</code></p>
+<p><strong>List RPM packages by architecture:</strong></p>
+<pre><code class="language-bash"># List packages for specific architecture
+ls -ltr ./tmp/deploy/rpm/cortexa53_crypto/
+
+# List all architectures with packages
+ls -ltr ./tmp/deploy/rpm/
+</code></pre>
+<p><strong>Architecture directories in deploy:</strong></p>
+<pre><code class="language-bash">tree ./tmp/deploy/rpm/
+├── cortexa53_crypto/              # CortexA53 with crypto support
+│   ├── pkcs11-hse-*.rpm           # PKCS#11 HSE module
+│   ├── hse-firmware-*.rpm         # HSE firmware
+│   ├── hse-linux-driver-*.rpm     # HSE Linux driver
+│   └── [other packages]
+├── all/                           # Architecture-independent packages
+├── noarch/                        # No-architecture packages
+└── Packages                       # RPM metadata index
+</code></pre>
+<p><strong>Find specific packages:</strong></p>
+<pre><code class="language-bash"># Find all HSE-related RPMs
+find ./tmp/deploy/rpm -name &quot;*hse*.rpm&quot;
+
+# Find kernel modules
+find ./tmp/deploy/rpm -name &quot;*modules*.rpm&quot;
+
+# Count total RPM packages
+find ./tmp/deploy/rpm -name &quot;*.rpm&quot; | wc -l
+
+# List all RPMs with sizes
+find ./tmp/deploy/rpm -name &quot;*.rpm&quot; -exec ls -lh {} \; | awk '{print $9, $5}' | sort
+</code></pre>
+<p><strong>Copy RPM packages to host output directory:</strong></p>
+<pre><code class="language-bash"># Copy all RPMs
+cp -r ./tmp/deploy/rpm/* /workdir/build-output/rpms/
+
+# Copy specific architecture
+cp -r ./tmp/deploy/rpm/cortexa53_crypto/* /workdir/build-output/rpms-crypto/
+</code></pre>
+<hr>
+<h3>3. RPM Spec Files (Build Specifications)</h3>
+<p><strong>Location:</strong> <code>./tmp/work/cortexa53-crypto-fsl-linux/</code></p>
+<p><strong>List package build directories:</strong></p>
+<pre><code class="language-bash">ls -ltr ./tmp/work/cortexa53-crypto-fsl-linux/
+</code></pre>
+<p><strong>Directory structure for each package:</strong></p>
+<pre><code class="language-bash">tree ./tmp/work/cortexa53-crypto-fsl-linux/
+├── pkcs11-hse/
+│   └── 1.0/
+│       ├── pkcs11-hse.spec                # ✅ RPM SPEC FILE
+│       ├── build/                         # Build output files
+│       ├── image/                         # Staged installation files
+│       ├── packages-split/                # Split package files
+│       ├── log.do_configure
+│       ├── log.do_compile
+│       ├── log.do_install
+│       └── temp/                          # Build scripts and logs
+├── hse-firmware/
+│   └── 0.2.64.0/
+│       ├── hse-firmware.spec              # ✅ RPM SPEC FILE
+│       ├── [similar structure]
+├── linux-kernel/
+│   └── 6.1.46/
+│       ├── kernel.spec                    # ✅ RPM SPEC FILE
+│       ├── [similar structure]
+└── [other packages]
+</code></pre>
+<p><strong>View spec files for packages:</strong></p>
+<pre><code class="language-bash"># List all spec files
+find ./tmp/work/cortexa53-crypto-fsl-linux -name &quot;*.spec&quot;
+
+# View a specific spec file
+cat ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/pkcs11-hse.spec
+
+# View HSE firmware spec
+cat ./tmp/work/cortexa53-crypto-fsl-linux/hse-firmware/*/hse-firmware.spec
+
+# Search spec content
+grep -r &quot;Summary&quot; ./tmp/work/cortexa53-crypto-fsl-linux --include=&quot;*.spec&quot;
+</code></pre>
+<p><strong>Spec file example:</strong></p>
+<pre><code class="language-bash">ls ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/pkcs11-hse.spec
+./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/pkcs11-hse.spec
+</code></pre>
+<p>[Contains RPM package definition including]:</p>
+<ul>
+<li>Summary and description</li>
+<li>Version, release, and package information</li>
+<li>Build dependencies</li>
+<li>Compilation flags</li>
+<li>Installation instructions</li>
+<li>File lists (%files section)</li>
+<li>Changelog</li>
+</ul>
+<p><strong>Find build logs for each package:</strong></p>
+<pre><code class="language-bash"># List build logs for specific package
+ls -ltr ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/log.*
+
+# View compilation log
+cat ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/log.do_compile
+
+# View installation log
+cat ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/log.do_install
+
+# View build script
+cat ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/temp/run.do_compile.*
+</code></pre>
+<hr>
+<h3>4. Complete Directory Structure Map</h3>
+<pre><code class="language-bash">./tmp/
+├── deploy/                                    # Final installation artifacts
+│   ├── images/s32g399aevb3/                  # ✅ BOOTABLE IMAGES
+│   │   ├── fsl-image-auto-*.sdcard.bz2
+│   │   ├── u-boot-s32g399aevb3.bin
+│   │   ├── Image                             # Linux kernel
+│   │   └── s32g399aevb3.dtb                  # Device tree
+│   │
+│   └── rpm/                                   # ✅ RPM PACKAGES BY ARCH
+│       ├── cortexa53_crypto/                 # Main architecture
+│       ├── all/                              # Arch-independent
+│       └── noarch/                           # No-arch packages
+│
+├── work/                                      # Build work directories
+│   ├── cortexa53-crypto-fsl-linux/          # Main architecture work
+│   │   ├── pkcs11-hse/
+│   │   │   └── 1.0/
+│   │   │       ├── pkcs11-hse.spec          # ✅ SPEC FILE
+│   │   │       ├── log.do_*                 # Build logs
+│   │   │       ├── temp/run.do_*            # Build scripts
+│   │   │       └── packages-split/          # Generated RPM contents
+│   │   ├── hse-firmware/                    # HSE firmware build
+│   │   └── [other packages]
+│   │
+│   └── [other architecture builds]
+│
+└── log/                                       # Build diagnostics
+    └── cooker/&lt;timestamp&gt;/
+        ├── console-latest.log               # Build output
+        └── [task logs]
+</code></pre>
+<hr>
+<h3>Quick Navigation Commands</h3>
+<p><strong>Change to build directory:</strong></p>
+<pre><code class="language-bash">cd /workdir/sources/build_s32g399aevb3
+</code></pre>
+<p><strong>View all generated images:</strong></p>
+<pre><code class="language-bash">ls -ltr ./tmp/deploy/images/s32g399aevb3/
+</code></pre>
+<p><strong>View all generated RPM packages:</strong></p>
+<pre><code class="language-bash">ls -ltr ./tmp/deploy/rpm/cortexa53_crypto/
+</code></pre>
+<p><strong>View all RPM spec files:</strong></p>
+<pre><code class="language-bash">find ./tmp/work/cortexa53-crypto-fsl-linux -name &quot;*.spec&quot;
+</code></pre>
+<p><strong>View a specific package spec file:</strong></p>
+<pre><code class="language-bash">cat ./tmp/work/cortexa53-crypto-fsl-linux/pkcs11-hse/1.0/pkcs11-hse.spec
+</code></pre>
+<p><strong>Copy all generated artifacts to host:</strong></p>
+<pre><code class="language-bash"># Copy images
+cp -r ./tmp/deploy/images/s32g399aevb3/* /workdir/build-output/images/
+
+# Copy RPM packages
+cp -r ./tmp/deploy/rpm/cortexa53_crypto/* /workdir/build-output/rpms/
+
+# Copy spec files
+cp -r ./tmp/work/cortexa53-crypto-fsl-linux /workdir/build-output/build-work/
+</code></pre>
+<hr>
+<h2>Cleaning the Build</h2>
+<p>To clean all build artifacts and start fresh:</p>
+<pre><code class="language-bash">cd /workdir/sources/build_s32g399aevb3
+bitbake -c cleanall fsl-image-auto
+</code></pre>
+<p>To clean only specific components:</p>
+<pre><code class="language-bash"># Clean kernel only
+bitbake -c clean linux-alb
+
+# Clean U-Boot only
+bitbake -c clean u-boot-alb
+
+# Clean HSE packages
+bitbake -c clean pkcs11-hse
+bitbake -c clean hse-firmware
+</code></pre>
+<p>To clean build directory completely:</p>
+<pre><code class="language-bash">rm -rf /workdir/sources/build_s32g399aevb3/tmp/
+</code></pre>
+<hr>
+<h2>Managing the Container Session</h2>
+<h3>Executing Commands in a Running Container</h3>
+<p>To run commands in the running container without attaching the full terminal:</p>
+<pre><code class="language-bash">podman exec -it yocto-test bash
+</code></pre>
+<h3>Checking Container Status</h3>
+<p>To see if the container is running:</p>
+<pre><code class="language-bash">podman ps -a | grep yocto-test
+</code></pre>
+<p>Or get more detailed status:</p>
+<pre><code class="language-bash">podman inspect yocto-test --format=''
+</code></pre>
+<h3>Stopping the Container</h3>
+<p>To stop the running container gracefully:</p>
+<pre><code class="language-bash">podman stop yocto-test
+</code></pre>
+<p>The <code>-t0</code> flag sets the timeout to 0 seconds, forcing an immediate stop. This is useful when the container is unresponsive or you need to stop it quickly.</p>
+<h3>Restarting the Container</h3>
+<p>To restart a stopped container:</p>
+<pre><code class="language-bash">podman start yocto-test
+</code></pre>
+<p>Execute commands in it:</p>
+<pre><code class="language-bash">podman exec -it yocto-test bash
+</code></pre>
+<hr>
+<h2>Troubleshooting</h2>
+<h3>Container Permission Issues</h3>
+<p>If you encounter permission issues with the mounted volume:</p>
+<ul>
+<li>Ensure SELinux label <code>:Z</code> is present in the mount flag</li>
+<li>Verify host user UID/GID matches the container settings</li>
+</ul>
+<h3>Build Space Issues</h3>
+<p>If the build fails due to disk space:</p>
+<pre><code class="language-bash"># Clean intermediate build files
+bitbake -c cleanall fsl-image-auto
+rm -rf /workdir/sources/build_s32g399aevb3/tmp/
+</code></pre>
+<h3>HSE Firmware Not Found</h3>
+<p>Verify the firmware path:</p>
+<pre><code class="language-bash">ls -la /workdir/HSE_FW_S32G3XX_0_2_64_0/
+</code></pre>
+<p>The directory should contain <code>hse_firmware_*.bin</code> files.</p>
+<h3>Build Dependency Issues</h3>
+<p>Update and resync the sources:</p>
+<pre><code class="language-bash">cd /workdir/sources
+repo sync
+repo rebase
+</code></pre>
+<hr>
+<h2>Build Performance Optimization</h2>
+<p>To speed up builds, configure parallel compilation in <code>local.conf</code>:</p>
+<pre><code class="language-bash"># Set to number of CPU cores available
+BB_NUMBER_THREADS = &quot;8&quot;
+PARALLEL_MAKE = &quot;-j 8&quot;
+</code></pre>
+<hr>
+<h2>Additional Resources</h2>
+<ul>
+<li><strong>NXP S32G3 User Manual</strong>: ~/tests/NXP-S32G3-userspace/S32G3_LinuxBSP_&lt;BRANCH_VER&gt;_User_Manual.md</li>
+<li><strong>Yocto Project Documentation</strong>: <a href="https://www.yoctoproject.org/">https://www.yoctoproject.org/</a></li>
+<li><strong>Crops Poky Container</strong>: <a href="https://github.com/crops/poky-container">https://github.com/crops/poky-container</a></li>
+</ul>
+<p><strong>Note:</strong> Replace <code>&lt;BRANCH_VER&gt;</code> with your actual BSP branch version throughout this guide (e.g., 46.0, 47.0, etc.).
+All NXP software packages, documentation, and firmware binaries must be downloaded from:
+<a href="https://www.nxp.com/webapp/swlicensing/sso/downloadSoftware.sp?catid=SW32G-STDSW-D">https://www.nxp.com/webapp/swlicensing/sso/downloadSoftware.sp?catid=SW32G-STDSW-D</a></p>
+<hr>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/yocto-nsp-build"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/yocto-nsp-build.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
