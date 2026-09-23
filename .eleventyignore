@@ -1,0 +1,4 @@
+.venv/
+opencode_vertexai_draft.md
+node_modules/
+_site/
