@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connecting OpenCode CLI with Jira & Confluence via Model Context Protocol (MCP) - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Connecting OpenCode CLI with Jira & Confluence via Model Context Protocol (MCP)</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-10-01" itemprop="datePublished">
+        October 1, 2026
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2>Introduction</h2>
+<p>Agile methodologies are deeply rooted in enterprise daily workflows. Interacting with Jira issues for ticket management and Confluence for knowledge sharing and technical processes is an essential part of software development.</p>
+<p>With the <strong>Model Context Protocol (MCP)</strong>, the <strong>OpenCode</strong> CLI workflow begins directly inside your terminal by reading Jira issues, referencing linked Confluence pages for workflow instructions, and executing development tasks with full context of user stories and specifications.</p>
+<h2>Why This Matters</h2>
+<p>Switching context between code in the terminal and browser tabs with tickets and wikis slows down momentum and disrupts focus. Having full planning and deep understanding of a task—based directly on Jira issues and Confluence documentation—allows OpenCode to act as a truly context-aware coding assistant.</p>
+<p>By integrating Atlassian tools via MCP, OpenCode can search for relevant tickets, read specification docs, follow organizational workflows, and keep project management tools updated without ever leaving the command line.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>OpenCode CLI installed and configured</li>
+<li>Podman installed and running locally</li>
+<li>An active Atlassian Cloud account (Jira &amp; Confluence)</li>
+<li>An Atlassian API Token generated for your user account</li>
+</ul>
+<hr>
+<h2>Step 1: Generate Atlassian API Token</h2>
+<p>To allow the MCP server to authenticate with your Atlassian Cloud instance, generate an API token:</p>
+<ol>
+<li>Log in to <a href="https://id.atlassian.com/manage-profile/security/api-tokens">id.atlassian.com/manage-profile/security/api-tokens</a>.</li>
+<li>Click <strong>Create API token</strong>.</li>
+<li>Give your token a label (e.g., <code>opencode-mcp</code>) and copy the generated token.</li>
+</ol>
+<h2>Step 2: Set Environment Variables</h2>
+<p>Export your Atlassian credentials in your shell environment:</p>
+<pre><code class="language-bash">export ATLASSIAN_EMAIL=&quot;your-email@example.com&quot;
+export ATLASSIAN_API_TOKEN=&quot;your-atlassian-api-token&quot;
+</code></pre>
+<p><em>(Tip: Add these exports to your <code>~/.bashrc</code> or shell profile to make them persistent).</em></p>
+<h2>Step 3: Configure OpenCode MCP Settings</h2>
+<p>Edit your OpenCode configuration file (<code>~/.config/opencode/opencode.json</code>) to register the Atlassian MCP server container:</p>
+<pre><code class="language-bash">mkdir -p ~/.config/opencode
+nano ~/.config/opencode/opencode.json
+</code></pre>
+<p>Add the <code>mcp</code> server configuration to your <code>opencode.json</code>:</p>
+<pre><code class="language-json">{
+  &quot;$schema&quot;: &quot;https://opencode.ai/config.json&quot;,
+  &quot;model&quot;: &quot;google-vertex/gemini-3.6-flash&quot;,
+  &quot;providers&quot;: {
+    &quot;google-vertex&quot;: {
+      &quot;package&quot;: &quot;@opencode-ai/ai/providers/google-vertex&quot;,
+      &quot;options&quot;: {
+        &quot;location&quot;: &quot;us-central1&quot;
+      },
+      &quot;models&quot;: {
+        &quot;gemini-3.6-flash&quot;: {
+          &quot;name&quot;: &quot;Gemini 3.6 Flash&quot;
+        }
+      }
+    }
+  },
+  &quot;mcp&quot;: {
+    &quot;atlassian&quot;: {
+      &quot;type&quot;: &quot;local&quot;,
+      &quot;command&quot;: [
+        &quot;podman&quot;,
+        &quot;run&quot;,
+        &quot;-i&quot;,
+        &quot;--rm&quot;,
+        &quot;-e&quot;,
+        &quot;JIRA_URL&quot;,
+        &quot;-e&quot;,
+        &quot;CONFLUENCE_URL&quot;,
+        &quot;-e&quot;,
+        &quot;ATLASSIAN_EMAIL&quot;,
+        &quot;-e&quot;,
+        &quot;ATLASSIAN_API_TOKEN&quot;,
+        &quot;ghcr.io/sooperset/mcp-atlassian:latest&quot;
+      ],
+      &quot;environment&quot;: {
+        &quot;JIRA_URL&quot;: &quot;https://your-domain.atlassian.net&quot;,
+        &quot;CONFLUENCE_URL&quot;: &quot;https://your-domain.atlassian.net/wiki&quot;,
+        &quot;ATLASSIAN_EMAIL&quot;: &quot;{env:ATLASSIAN_EMAIL}&quot;,
+        &quot;ATLASSIAN_API_TOKEN&quot;: &quot;{env:ATLASSIAN_API_TOKEN}&quot;
+      },
+      &quot;enabled&quot;: true
+    }
+  }
+}
+</code></pre>
+<p>Make sure to replace <code>https://your-domain.atlassian.net</code> with your actual Atlassian domain.</p>
+<h2>Step 4: Launch and Verify OpenCode</h2>
+<p>Start OpenCode to load the Atlassian MCP tools:</p>
+<pre><code class="language-bash">opencode
+</code></pre>
+<p>After launching OpenCode, send a quick initial prompt to the LLM (for example, <code>please reply hello</code>).</p>
+<p>To verify that the MCP server is active, press <strong>Ctrl+X</strong> followed by <strong>b</strong> to toggle the sidebar/status panel in the OpenCode TUI interface.</p>
+<p><img src="/assets/images/MCP+sidebar.png" alt="OpenCode MCP Sidebar Status"></p>
+<p>As shown in the sidebar, the <code>atlassian</code> MCP status is visible and connected, indicating that the Jira and Confluence tools are loaded and ready for interaction.</p>
+<p>While the MCP server is up and running, you can also verify that the container is active in another terminal tab using <code>podman ps</code>:</p>
+<pre><code class="language-bash">podman ps
+</code></pre>
+<p>Output:</p>
+<pre><code class="language-text">CONTAINER ID  IMAGE                                   COMMAND  CREATED        STATUS         PORTS  NAMES
+2a8d84b821a8  ghcr.io/sooperset/mcp-atlassian:latest           8 minutes ago  Up 8 minutes         busy_nightingale
+</code></pre>
+<p>You can now use natural language prompts to interact with Jira and Confluence directly:</p>
+<ul>
+<li><em>&quot;Summarize Jira ticket PROJ-123 and list its requirements.&quot;</em></li>
+<li><em>&quot;Find Confluence pages about deployment workflows and apply those steps.&quot;</em></li>
+<li><em>&quot;Update Jira issue PROJ-123 with progress comments.&quot;</em></li>
+</ul>
+<hr>
+<h2>Troubleshooting &amp; Tips</h2>
+<ul>
+<li><strong>Podman Container Issues:</strong> Ensure Podman is installed and able to run rootless containers locally (<code>podman run --rm hello-world</code>).</li>
+<li><strong>Authentication Failures:</strong> Verify that <code>ATLASSIAN_EMAIL</code> and <code>ATLASSIAN_API_TOKEN</code> are properly exported in your environment prior to launching <code>opencode</code>.</li>
+<li><strong>Domain Formatting:</strong> Double-check that <code>JIRA_URL</code> and <code>CONFLUENCE_URL</code> in <code>opencode.json</code> correctly reflect your Atlassian site domain (e.g., <code>https://company.atlassian.net</code>).</li>
+</ul>
+<hr>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/opencode-mcp"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/opencode-mcp.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

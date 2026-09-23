@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local SonarQube Setup for Code Quality Analysis - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Local SonarQube Setup for Code Quality Analysis</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-03-11" itemprop="datePublished">
+        March 11, 2026
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2>How to setup SonarQube locally for code quality</h2>
+<p>SonarQube is a powerful code quality and security analysis tool.<br>
+This guide shows you how to:</p>
+<ul>
+<li>set it up locally.</li>
+<li>execute scans.</li>
+</ul>
+<h2>Why should you care?</h2>
+<p>SonarQube automatically analyzes code pytest coverage XML and tracks
+Coverage of code blocks.
+It also detects:</p>
+<ul>
+<li>security vulnerabilities like SQL injection.hardcoded secrets.</li>
+<li>measures code quality metrics such as cognitive complexity and code duplication.</li>
+<li>coverage level.</li>
+</ul>
+<p>This continuous analysis helps maintain clean, secure, and maintainable code without manual review of coverage reports.</p>
+<h2>How it works?</h2>
+<p>SonarQube operates on a client-server model:</p>
+<ul>
+<li>SonarQube server that stores analysis results and quality metrics.</li>
+<li>Scanner client (CLI tool or container) analyzes your code locally.</li>
+</ul>
+<p>Client uploades analysis results to the server.
+In case server threshold is low, client will complete with failure</p>
+<p>To view analysis results the server contains Web UI</p>
+<p>SonarQube has a Developer/Enterprise editions.
+The Developer/ Community eddition is Free and Open Source Software, FOSS</p>
+<h2>Scope</h2>
+<p>This guide focuses exclusively on Free and Open Source Software (FOSS) edition, demonstrating SonarQube using Podman containers and the Community Edition server.<br>
+All tools and configurations shown are freely available and can be used in production without licensing costs. For a detailed comparison of Community vs Enterprise features and workarounds for Community Edition limitations, see <a href="#understanding-pull-request-vs-main-branch-analysis">Understanding Pull Request vs Main Branch Analysis</a>.</p>
+<h2>Running SonarQube Server Locally</h2>
+<p>SonarQube runs as a server that receives scan results. The easiest way to run it locally is using containers.</p>
+<h3>Start SonarQube Server</h3>
+<pre><code class="language-bash"># Using Podman
+podman run -d --replace --name sonarqube -p 9000:9000 sonarqube:latest
+</code></pre>
+<p>Wait for the server to start (this can take 1-2 minutes):</p>
+<pre><code class="language-bash"># Watch the last 20 lines of logs until you see &quot;SonarQube is operational&quot;
+podman logs -f --tail 20 sonarqube
+</code></pre>
+<p>When you see &quot;SonarQube is operational&quot;, it's ready. Press <code>Ctrl+C</code> to exit the logs.</p>
+<h3>Initial Setup</h3>
+<ol>
+<li>
+<p>Open <a href="http://localhost:9000">http://localhost:9000</a> in your browser</p>
+</li>
+<li>
+<p>Login with default credentials: <code>admin</code> / <code>admin</code></p>
+</li>
+<li>
+<p>Change the default password:</p>
+<p><strong>Using the API (for automation)</strong></p>
+<pre><code class="language-bash">curl -u admin:admin -X POST &quot;http://localhost:9000/api/users/change_password?login=admin&amp;previousPassword=admin&amp;password=NewPassword@123&quot;
+</code></pre>
+</li>
+<li>
+<p>Create a new project:</p>
+<ul>
+<li>Login admin + password</li>
+<li>Click &quot;Create Project&quot; &gt; &quot;Manually&quot;</li>
+<li>Enter a Project Key (e.g., <code>test-project</code>)</li>
+<li>Click &quot;Set Up&quot;</li>
+</ul>
+</li>
+<li>
+<p>Generate an authentication token:</p>
+<p><strong>Option A: Using the Web UI</strong></p>
+<ul>
+<li>Go to Administration &gt; Security &gt; Users</li>
+<li>Click on the token icon for the admin user</li>
+<li>Enter a token name (e.g., <code>admin-token</code>)</li>
+<li>Choose token type (Global Analysis Token for scanning)</li>
+<li>Click &quot;Generate&quot; and <strong>save the token</strong> - you'll need it for scanning</li>
+</ul>
+<p><strong>Option B: Using the API (for automation)</strong></p>
+<pre><code class="language-bash"># Generate a new token
+curl -u admin:NewPassword@123 -X POST \
+  &quot;http://localhost:9000/api/user_tokens/generate?name=remote_automation_token&amp;type=GLOBAL_ANALYSIS_TOKEN&quot; | jq .
+</code></pre>
+<p>Response example:</p>
+<pre><code class="language-json">{
+  &quot;login&quot;: &quot;admin&quot;,
+  &quot;name&quot;: &quot;remote_automation_token&quot;,
+  &quot;token&quot;: &quot;squ_a1b2c3d4e5f6g7h8i9j0&quot;,
+  &quot;createdAt&quot;: &quot;2026-03-01T10:30:00+0000&quot;
+}
+</code></pre>
+<p><strong>Save the token value</strong> - it won't be shown again!</p>
+<p><strong>To revoke a token:</strong></p>
+<pre><code class="language-bash">curl -u admin:NewPassword123 -X POST \
+  &quot;http://localhost:9000/api/user_tokens/revoke?name=remote_automation_token&quot;
+</code></pre>
+<p><strong>To list all tokens:</strong></p>
+<pre><code class="language-bash">curl -u admin:NewPassword123 \
+  &quot;http://localhost:9000/api/user_tokens/search&quot; | jq .
+</code></pre>
+</li>
+</ol>
+<h2>Scanning repository</h2>
+<h3>Create sonar-project.properties</h3>
+<p>In your repository root, create or update <code>sonar-project.properties</code>:</p>
+<pre><code class="language-properties">sonar.projectKey=test-project
+sonar.projectName=test-project
+sonar.host.url=http://localhost:9000
+
+# Source code configuration
+sonar.sources=src
+sonar.tests=tests
+
+# Python-specific settings
+sonar.language=py
+sonar.python.version=3.9
+
+# Coverage report location
+sonar.python.coverage.reportPaths=coverage.xml
+</code></pre>
+<p><strong>Note:</strong> You can add exclusions if needed:</p>
+<pre><code class="language-properties"># Exclusions (optional)
+sonar.exclusions=**/tests/**,**/*_test.py,**/test_*.py,**/__pycache__/**,**/*.pyc
+</code></pre>
+<h3>Generate Test Coverage (Optional but Recommended)</h3>
+<p>Before scanning, generate a coverage report to track code quality:</p>
+<pre><code class="language-bash"># Install pytest-cov using uv
+uv pip install pytest-cov
+
+# Run tests with coverage
+uv run pytest tests/ -v --cov=src --cov-report=xml:coverage.xml --cov-report=term
+</code></pre>
+<p>This generates <code>coverage.xml</code> which SonarQube will include in the analysis.</p>
+<h3>Scan Using CLI</h3>
+<p>Use containerized scanner (no installation needed) - Recommended**</p>
+<pre><code class="language-bash"># Set your token as an environment variable
+export TOKEN=your_sonarqube_token_here
+
+# Run scanner in container
+# IMPORTANT: Mount at the same path as your working directory for coverage to work
+podman run --rm \
+  -v $(pwd):$(pwd):z \
+  -w $(pwd) \
+  --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.token=$TOKEN
+</code></pre>
+<p>The scanner will automatically use your <code>sonar-project.properties</code> configuration.</p>
+<p><strong>Why the volume mount path matters:</strong>
+The container must see files at the same absolute paths as referenced in <code>coverage.xml</code>. If coverage.xml contains paths like <code>/home/user/project/src/file.py</code>, the container must also see files at <code>/home/user/project/src/file.py</code> - not <code>/usr/src/src/file.py</code>. Using <code>-v $(pwd):$(pwd):z</code> ensures path matching, which is critical for coverage reporting to work correctly.</p>
+<p><strong>Complete workflow example:</strong></p>
+<pre><code class="language-bash"># 1. Generate coverage
+uv pip install pytest-cov
+uv run pytest tests/ -v --cov=src --cov-report=xml:coverage.xml --cov-report=term
+
+# 2. Set token
+export TOKEN=your_sonarqube_token_here
+
+# 3. Run SonarQube scan (use matching paths for coverage)
+podman run --rm \
+  -v $(pwd):$(pwd):z \
+  -w $(pwd) \
+  --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.token=$TOKEN
+</code></pre>
+<h3>View Results</h3>
+<p>After scanning completes, view the results at <a href="http://localhost:9000">http://localhost:9000</a></p>
+<h2>Advanced: Usage of SonarQube in CI/CD Workflow</h2>
+<p>The following sections describe advanced integration scenarios with CI/CD pipelines. These features require either SonarQube Developer/Enterprise Edition or automated workflows in your CI/CD platform.</p>
+<h3>Understanding Pull Request vs Main Branch Analysis</h3>
+<p>SonarQube performs two different types of analysis depending on when it runs:</p>
+<h3>Pull Request Analysis (Differential Scan)</h3>
+<ul>
+<li><strong>Scans only the changed files</strong> - analyzes just the code you modified in the PR</li>
+<li><strong>Fast and focused</strong> - shows only new issues introduced by your changes</li>
+<li><strong>Prevents new technical debt</strong> - blocks PRs that don't meet quality standards</li>
+<li><strong>Does NOT update</strong> the main project metrics</li>
+</ul>
+<p><strong>What gets analyzed:</strong></p>
+<pre><code class="language-bash">Your PR changes 2 files out of 100 in the project:
+✓ src/auth.py (modified)
+✓ tests/test_auth.py (new file)
+
+SonarQube analyzes: Only these 2 files
+</code></pre>
+<h3>Main Branch Analysis (Full Scan)</h3>
+<ul>
+<li><strong>Scans the entire codebase</strong> - analyzes all files in your project</li>
+<li><strong>Updates overall metrics</strong> - coverage, bugs, code smells, security issues</li>
+<li><strong>Creates the baseline</strong> - future PR scans compare against this</li>
+<li><strong>Tracks trends</strong> - shows project health over time</li>
+</ul>
+<p><strong>What gets analyzed:</strong></p>
+<pre><code class="language-bash">All 100 files in your project:
+✓ src/auth.py
+✓ src/database.py
+✓ src/models.py
+✓ tests/test_auth.py
+✓ ... every file in the project
+</code></pre>
+<h3>The Workflow</h3>
+<pre><code class="language-bash">1. Create PR → PR Analysis (diff only) → Shows only new issues
+                     ↓
+2. Merge to main → Main Analysis (full scan) → Updates baseline &amp; metrics
+</code></pre>
+<p>This two-stage approach ensures:</p>
+<ul>
+<li>PRs get fast feedback on new code quality</li>
+<li>Main branch maintains accurate overall project health metrics</li>
+</ul>
+<h3>SonarQube Community Edition Limitations</h3>
+<p><strong>Important:</strong> SonarQube Community Edition has significant limitations compared to Developer/Enterprise editions:</p>
+<h4>What Community Edition CANNOT Do</h4>
+<ul>
+<li>❌ <strong>No branch analysis</strong> - Cannot analyze multiple branches separately with <code>-Dsonar.branch.name</code></li>
+<li>❌ <strong>No Pull Request decoration</strong> - Cannot analyze PRs with <code>-Dsonar.pullrequest.*</code> parameters</li>
+<li>❌ <strong>No branch comparison</strong> - Cannot compare one branch against another</li>
+<li>❌ <strong>No multiple branches in one project</strong> - Each scan overwrites the previous analysis</li>
+</ul>
+<h4>What Community Edition CAN Do</h4>
+<ul>
+<li>✅ <strong>Full codebase analysis</strong> - Scans the entire project</li>
+<li>✅ <strong>Quality metrics</strong> - Coverage, bugs, code smells, security hotspots</li>
+<li>✅ <strong>Historical trends</strong> - Track changes over time in the Activity tab</li>
+<li>✅ <strong>Quality Gates</strong> - Set thresholds and check compliance</li>
+<li>✅ <strong>New Code Period</strong> - Define what counts as &quot;new code&quot; (by version, days, or reference)</li>
+</ul>
+<h4>Workarounds for Community Edition</h4>
+<p><strong>To analyze different branches:</strong></p>
+<ol>
+<li>
+<p><strong>Option A:</strong> Scan different branches as separate projects:</p>
+<pre><code class="language-bash"># Main branch
+podman run --rm -v $(pwd):$(pwd):z -w $(pwd) --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.projectKey=myproject-main \
+  -Dsonar.projectName=&quot;My Project - Main&quot; \
+  -Dsonar.token=$TOKEN
+
+# Feature branch
+git checkout feature-branch
+podman run --rm -v $(pwd):$(pwd):z -w $(pwd) --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.projectKey=myproject-feature \
+  -Dsonar.projectName=&quot;My Project - Feature Branch&quot; \
+  -Dsonar.token=$TOKEN
+</code></pre>
+</li>
+<li>
+<p><strong>Option B:</strong> Use the &quot;Previous Version&quot; new code period to see changes between scans:</p>
+<ul>
+<li>In SonarQube UI: Project Settings &gt; New Code &gt; &quot;Previous version&quot;</li>
+<li>Each scan becomes a version, showing what changed since last scan</li>
+</ul>
+</li>
+</ol>
+<h4>Running Full Branch Scan Locally</h4>
+<p>To run a complete scan of your branch:</p>
+<pre><code class="language-bash"># 1. Make sure you're on the branch you want to scan
+git checkout your-branch-name
+
+# 2. Generate coverage for the entire codebase
+uv run pytest tests/ --cov=src --cov-report=xml:coverage.xml --cov-report=html
+
+# 3. Run the full scan (analyzes all files in the project)
+podman run --rm \
+  -v $(pwd):$(pwd):z \
+  -w $(pwd) \
+  --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.token=$TOKEN
+</code></pre>
+<p>This will:</p>
+<ul>
+<li>Analyze <strong>all source files</strong> in your project (not just changed files)</li>
+<li>Include <strong>test coverage</strong> data from coverage.xml</li>
+<li>Update all <strong>code quality metrics</strong> (bugs, vulnerabilities, code smells)</li>
+<li>Show <strong>cognitive complexity</strong> for all functions</li>
+<li>Report overall project health</li>
+</ul>
+<p><strong>View the results at:</strong> <a href="http://localhost:9000">http://localhost:9000</a></p>
+<p>The results show the complete state of your branch with all quality metrics and coverage data.</p>
+<h2>Quality Gate Setup</h2>
+<p>Quality Gates ensure code meets minimum quality standards. When configured, the scanner can fail locally if your code doesn't meet the threshold.</p>
+<h3>Configure Quality Gate in SonarQube</h3>
+<ol>
+<li>In SonarQube UI at <a href="http://localhost:9000">http://localhost:9000</a>, go to <strong>Quality Gates</strong></li>
+<li>Click &quot;Create&quot; or edit the default &quot;Sonar way&quot;</li>
+<li>Add conditions for <strong>Overall Code</strong>:
+<ul>
+<li>Overall Coverage: <code>&lt; 70%</code> (Error)</li>
+<li>Overall Maintainability Rating: <code>worse than A</code> (Error)</li>
+<li>Overall Security Hotspots Reviewed: <code>&lt; 80%</code> (Error)</li>
+<li>Duplicated Lines: <code>&gt; 3%</code> (Error)</li>
+</ul>
+</li>
+</ol>
+<h3>Check Quality Gate Status Locally</h3>
+<p>Run the scanner with quality gate check:</p>
+<pre><code class="language-bash">export TOKEN=your_sonarqube_token
+
+podman run --rm \
+  -v $(pwd):$(pwd):z \
+  -w $(pwd) \
+  --network host \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.token=$TOKEN \
+  -Dsonar.qualitygate.wait=true
+</code></pre>
+<p>The scanner will:</p>
+<ul>
+<li>Upload analysis results</li>
+<li>Wait for Quality Gate evaluation</li>
+<li><strong>Exit with error code 1</strong> if Quality Gate fails (e.g., coverage &lt; 70%)</li>
+<li>Exit with code 0 if Quality Gate passes</li>
+</ul>
+<p>This allows you to verify code quality locally before committing changes.</p>
+<h2>Production Deployment Tips</h2>
+<h3>Use Persistent Storage</h3>
+<p>For production, persist SonarQube data:</p>
+<pre><code class="language-bash">podman run -d \
+  --name sonarqube \
+  -p 9000:9000 \
+  -v sonarqube_data:/opt/sonarqube/data \
+  -v sonarqube_logs:/opt/sonarqube/logs \
+  -v sonarqube_extensions:/opt/sonarqube/extensions \
+  sonarqube:latest
+</code></pre>
+<h3>Use Environment Variables</h3>
+<p>Store sensitive data securely using environment variables instead of hardcoding:</p>
+<pre><code class="language-bash"># Export configuration as environment variables
+export SONAR_PROJECT_KEY=&quot;my-project&quot;
+export SONAR_HOST_URL=&quot;http://localhost:9000&quot;
+export SONAR_TOKEN=&quot;your_token_here&quot;
+
+# Use in scanner
+podman run --rm \
+  -v $(pwd):$(pwd):z \
+  -w $(pwd) \
+  --network host \
+  -e SONAR_TOKEN \
+  sonarsource/sonar-scanner-cli \
+  -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+  -Dsonar.host.url=${SONAR_HOST_URL}
+</code></pre>
+<hr>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/sonarqube-setup-guide"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/sonarqube-setup-guide.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
