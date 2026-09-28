@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Setting Up OpenCode with Google Vertex AI on Enterprise Linux - Yarboa's blog</title>
+  <meta name="description" content="This site is an opensource project, I am sharing here the experience in opensource projects">
+  <link rel="stylesheet" href="/assets/main.css">
+  <link rel="stylesheet" href="/assets/custom.css">
+</head>
+<body>
+  <header class="site-header" role="banner">
+    <div class="wrapper">
+      <a class="site-title" rel="author" href="/">Yarboa's blog</a>
+      <nav class="site-nav">
+        <div class="trigger">
+          <a class="page-link" href="/about/">About</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-content" aria-label="Content">
+    <div class="wrapper">
+      <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Setting Up OpenCode with Google Vertex AI on Enterprise Linux</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2026-09-23" itemprop="datePublished">
+        September 23, 2026
+      </time>
+    </p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2>Introduction</h2>
+<p>This guide provides a step-by-step walkthrough for installing the <strong>OpenCode</strong> CLI coding agent and configuring it to use <strong>Google Cloud Vertex AI</strong> as the model provider on Enterprise Linux 10 (EL10 / RHEL / Fedora).</p>
+<h2>Why This Matters</h2>
+<p>GPUs and dedicated cloud infrastructure are expensive, whereas local LLMs or cost-effective model APIs are more than sufficient for most daily development tasks. Facing a shortage of available AI services in my enterprise environment, I decided to leverage <strong>OpenCode</strong>—an open-source CLI coding agent—paired with <strong>Google Vertex AI</strong>, which is already approved and integrated in our cloud environment.</p>
+<p>Unlike Google AI Studio, which is tailored for rapid prototyping with personal API keys, Vertex AI provides enterprise-grade security, IAM governance, and compliance controls natively within Google Cloud.</p>
+<h2>Prerequisites</h2>
+<ul>
+<li>An Enterprise Linux host (EL10 / RHEL 10 / Fedora) with <code>sudo</code> access</li>
+<li>An active Google Cloud Platform (GCP) project with Vertex AI API enabled</li>
+<li><code>curl</code>, <code>dnf</code>, and <code>bash</code> installed</li>
+</ul>
+<hr>
+<h2>Step 1: Install OpenCode CLI</h2>
+<p>Install OpenCode using the official installation script and update your shell session:</p>
+<pre><code class="language-bash">curl -fsSL https://opencode.ai/install | bash
+source ~/.bashrc
+</code></pre>
+<h2>Step 2: Install Google Cloud CLI (Enterprise Linux / RHEL 10)</h2>
+<p>Add the official Google Cloud SDK repository to <code>dnf</code>:</p>
+<pre><code class="language-bash">sudo tee -a /etc/yum.repos.d/google-cloud-sdk.repo &lt;&lt; 'EOM'
+[google-cloud-cli]
+name=Google Cloud CLI
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el10-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key-v10.gpg
+EOM
+</code></pre>
+<p>Install required dependencies and the Cloud SDK:</p>
+<pre><code class="language-bash">sudo dnf install -y libxcrypt-compat google-cloud-cli
+</code></pre>
+<h2>Step 3: Initialize GCP &amp; Set Environment Variables</h2>
+<p>Initialize <code>gcloud</code> and set your active project:</p>
+<pre><code class="language-bash">gcloud init
+export GOOGLE_CLOUD_PROJECT=&quot;&lt;YOUR_PROJECT_ID&gt;&quot;
+gcloud config set project $GOOGLE_CLOUD_PROJECT
+</code></pre>
+<p>Export the necessary Vertex AI environment variables:</p>
+<pre><code class="language-bash">export GOOGLE_GENAI_USE_VERTEXAI=true
+export VERTEX_LOCATION=global
+export GOOGLE_CLOUD_PROJECT=&quot;&lt;YOUR_PROJECT_ID&gt;&quot;
+</code></pre>
+<p><em>(Tip: Add these exports to your <code>~/.bashrc</code> to make them persistent).</em></p>
+<h2>Step 4: Configure OpenCode Provider Settings</h2>
+<p>Edit your OpenCode configuration file (<code>~/.config/opencode/opencode.json</code>) to enable the Vertex AI provider:</p>
+<pre><code class="language-bash">mkdir -p ~/.config/opencode
+nano ~/.config/opencode/opencode.json
+</code></pre>
+<p>Add the following configuration:</p>
+<pre><code class="language-json">{
+  &quot;$schema&quot;: &quot;https://opencode.ai/config.json&quot;,
+  &quot;model&quot;: &quot;google-vertex/gemini-3.6-flash&quot;,
+  &quot;providers&quot;: {
+    &quot;google-vertex&quot;: {
+      &quot;package&quot;: &quot;@opencode-ai/ai/providers/google-vertex&quot;,
+      &quot;options&quot;: {
+        &quot;location&quot;: &quot;us-central1&quot;
+      },
+      &quot;models&quot;: {
+        &quot;gemini-3.6-flash&quot;: {
+          &quot;name&quot;: &quot;Gemini 3.6 Flash&quot;
+        }
+      }
+    }
+  }
+}
+</code></pre>
+<h2>Step 5: Authenticate Application Default Credentials (ADC)</h2>
+<p>Set up Application Default Credentials and set the quota project to allow API access:</p>
+<pre><code class="language-bash"># Login with Application Default Credentials
+gcloud auth application-default login
+
+# Set the quota project
+gcloud auth application-default set-quota-project $GOOGLE_CLOUD_PROJECT
+
+# (Optional) Verify enabled services
+gcloud services list --enabled --project $GOOGLE_CLOUD_PROJECT
+</code></pre>
+<h2>Step 6: Launch and Verify OpenCode</h2>
+<p>Now you can start using OpenCode backed by Vertex AI:</p>
+<pre><code class="language-bash">opencode
+</code></pre>
+<p>After launching OpenCode, verify that the active model displays <strong>Gemini 3.6 Flash Vertex</strong> in the terminal UI:</p>
+<p><img src="/assets/images/OpenCodeHello.png" alt="OpenCode Terminal Interface with Vertex AI"></p>
+<p>Once configured, test sending a prompt to ensure Vertex AI responds properly:</p>
+<p><img src="/assets/images/LLMTest.png" alt="OpenCode Execution Test Response"></p>
+<hr>
+<h2>Troubleshooting &amp; Tips</h2>
+<ul>
+<li><strong>Authentication Errors:</strong> Ensure <code>gcloud auth application-default login</code> has been completed and that your account has the <code>Vertex AI User</code> IAM role.</li>
+<li><strong>Quota Project Errors:</strong> If you encounter quota errors, verify that <code>gcloud auth application-default set-quota-project $GOOGLE_CLOUD_PROJECT</code> matches your active GCP project ID.</li>
+<li><strong>Environment Variables Persistence:</strong> Ensure <code>GOOGLE_GENAI_USE_VERTEXAI=true</code>, <code>VERTEX_LOCATION=global</code>, and <code>GOOGLE_CLOUD_PROJECT</code> are exported in your <code>~/.bashrc</code> or shell profile.</li>
+</ul>
+<hr>
+<p><a href="http://hits.dwyl.com/yarboa/yarboagithubio/opencode-vertexai"><img src="https://hits.dwyl.com/yarboa/yarboagithubio/opencode-vertexai.svg?style=flat&amp;show=unique" alt="HitCount"></a></p>
+
+  </div>
+</article>
+
+    </div>
+  </main>
+
+  <footer class="site-footer h-card">
+    <div class="wrapper">
+      <h2 class="footer-heading">Yarboa's blog</h2>
+      <div class="footer-col-wrapper">
+        <div class="footer-col footer-col-1">
+          <ul class="contact-list">
+            <li class="p-name">Yarboa's blog</li>
+            <li><a class="u-email" href="mailto:yarboa@gmail.com">yarboa@gmail.com</a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-2">
+          <ul class="social-media-list">
+            <li><a href="https://github.com/yarboa"><span class="username">github.com/yarboa</span></a></li>
+            <li><a href="https://www.twitter.com/yarboa"><span class="username">twitter.com/yarboa</span></a></li>
+          </ul>
+        </div>
+        <div class="footer-col footer-col-3">
+          <p>This site is an opensource project, I am sharing here the experience in opensource projects</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
