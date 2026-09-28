@@ -34,19 +34,30 @@ Run PowerShell command with elevated permissions \[Win+x\]:
 winget install Microsoft.WindowsTerminal
 ```
 
-Install wsl and set to version 2
+Install WSL and set to version 2:
+
+For **Windows 11 Desktop**, open PowerShell with elevated permissions (Run as Administrator):
 
 ``` PowerShell
 wsl --install
 ```
 
-Installation ask to reboot
-**The requested operation is successful.
- Change will not be effective untill the subsytem is rebooted.**
-
-Change to wsl v2
+For **Windows Server 2022**, open PowerShell with elevated permissions (Run as Administrator) to enable required features:
 
 ``` PowerShell
+# Enable WSL feature
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+
+# Enable Virtual Machine Platform (Required for WSL 2)
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+```
+
+Note: Reboot the server/machine after running these commands for the changes to take effect.
+
+After reboot, open PowerShell with elevated permissions (Run as Administrator) to update WSL kernel and set WSL 2 as default:
+
+``` PowerShell
+wsl --update
 wsl --set-default-version 2
 ```
 
